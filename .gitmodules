@@ -1,0 +1,3 @@
+[submodule "ip/dual_port_ram"]
+	path = ip/dual_port_ram
+	url = https://github.com/hellgate202/dual_port_ram/
