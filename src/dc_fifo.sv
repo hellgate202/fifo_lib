@@ -51,11 +51,14 @@ assign rd_used_words_o = rd_used_words;
 assign rd_full_o       = rd_full;
 assign rd_empty_o      = rd_empty;
 
+// Protection from write to full FIFO
 assign wr_req          = wr_i && !wr_full;
 assign wr_addr         = wr_ptr_wr_clk[ADDR_WIDTH - 1 : 0];
+// Protection from read from empty FIFO
 assign rd_req          = rd_i && !rd_empty;
 assign rd_addr         = rd_ptr_rd_clk[ADDR_WIDTH - 1 : 0];
 
+// Basic address counter
 always_ff @( posedge wr_clk_i, posedge rst_i )
   if( rst_i )
     wr_ptr_wr_clk <= '0;
@@ -63,30 +66,35 @@ always_ff @( posedge wr_clk_i, posedge rst_i )
     if( wr_req )
       wr_ptr_wr_clk <= wr_ptr_wr_clk + 1'b1;
 
+// Conversion to the Gray code
 always_ff @( posedge wr_clk_i, posedge rst_i )
   if( rst_i )
     wr_ptr_gray_wr_clk <= '0;
   else
     wr_ptr_gray_wr_clk <= wr_ptr_wr_clk ^ ( wr_ptr_wr_clk >> 1 );
 
+// Clock domain crossing
 always_ff @( posedge rd_clk_i, posedge rst_i )
   if( rst_i )
     wr_ptr_gray_rd_clk <= '0;
   else
     wr_ptr_gray_rd_clk <= wr_ptr_gray_wr_clk;
 
+// Delay for metastability protection
 always_ff @( posedge rd_clk_i, posedge rst_i )
   if( rst_i )
     wr_ptr_gray_rd_clk_mtstb <= '0;
   else
     wr_ptr_gray_rd_clk_mtstb <= wr_ptr_gray_rd_clk;
 
+// Gray code decoding
 always_ff @( posedge rd_clk_i, posedge rst_i )
   if( rst_i )
     wr_ptr_rd_clk <= '0;
   else
     wr_ptr_rd_clk <= wr_ptr_gray_rd_clk_mtstb ^ ( wr_ptr_gray_rd_clk_mtstb >> 1 );
 
+// Everything is the same as for write pointer
 always_ff @( posedge rd_clk_i, posedge rst_i )
   if( rst_i )
     rd_ptr_rd_clk <= '0;
@@ -118,17 +126,23 @@ always_ff @( posedge wr_clk_i, posedge rst_i )
   else
     rd_ptr_wr_clk <= rd_ptr_gray_wr_clk_mtstb ^ ( rd_ptr_gray_wr_clk_mtstb >> 1 );
 
+// MSB serves for indication if we are catching read pointer from behind
 assign wr_full       = wr_ptr_wr_clk[ADDR_WIDTH]         != rd_ptr_wr_clk[ADDR_WIDTH] &&
                        wr_ptr_wr_clk[ADDR_WIDTH - 1 : 0] == rd_ptr_wr_clk[ADDR_WIDTH - 1 : 0];
 assign rd_full       = rd_ptr_rd_clk[ADDR_WIDTH]         != wr_ptr_rd_clk[ADDR_WIDTH] &&
                        rd_ptr_rd_clk[ADDR_WIDTH - 1 : 0] == wr_ptr_rd_clk[ADDR_WIDTH - 1 : 0];
 assign wr_used_words = wr_ptr_wr_clk - rd_ptr_wr_clk;
 assign rd_used_words = wr_ptr_rd_clk - rd_ptr_rd_clk;
+// If MSB and address are the same, then we are empty
 assign wr_empty      = wr_ptr_wr_clk == rd_ptr_wr_clk;
+// Just like in sc_fifo
 assign rd_empty      = !data_at_output;
 
+// The fastest and the safest way to know that we have data to read is
+// to find out that our pointers differs
 assign data_in_mem   = wr_ptr_rd_clk != rd_ptr_rd_clk;
 
+// Just like in sc_fifo
 always_ff @( posedge rd_clk_i, posedge rst_i )
   if( rst_i )
     data_at_output <= '0;
