@@ -1,0 +1,156 @@
+module dc_fifo #(
+  parameter int DATA_WIDTH   = 8,
+  parameter int WORDS_AMOUNT = 8,
+  parameter int ADDR_WIDTH   = $clog2( WORDS_AMOUNT )
+)(
+  input                       wr_clk_i,
+  input  [DATA_WIDTH - 1 : 0] wr_data_i,
+  input                       wr_i,
+  output [ADDR_WIDTH : 0]     wr_used_words_o,
+  output                      wr_full_o,
+  output                      wr_empty_o,
+  input                       rd_clk_i,
+  output [DATA_WIDTH - 1 : 0] rd_data_o,
+  input                       rd_i,
+  output [ADDR_WIDTH - 1 : 0] rd_used_words_o,
+  output                      rd_full_o,
+  output                      rd_empty_o,
+  input                       rst_i
+);
+
+logic                      wr_req;
+logic [ADDR_WIDTH : 0]     wr_used_words;
+logic                      wr_full;
+logic                      wr_empty;
+logic [ADDR_WIDTH : 0]     wr_ptr_wr_clk;
+logic [ADDR_WIDTH : 0]     wr_ptr_gray_wr_clk;
+logic [ADDR_WIDTH : 0]     wr_ptr_gray_rd_clk;
+logic [ADDR_WIDTH : 0]     wr_ptr_gray_rd_clk_mtstb;
+logic [ADDR_WIDTH : 0]     wr_ptr_rd_clk;
+logic [ADDR_WIDTH - 1 : 0] wr_addr;
+
+logic                      rd_req;
+logic [ADDR_WIDTH : 0]     rd_used_words;
+logic                      rd_full;
+logic                      rd_empty;
+logic [ADDR_WIDTH : 0]     rd_ptr_rd_clk;
+logic [ADDR_WIDTH : 0]     rd_ptr_gray_rd_clk;
+logic [ADDR_WIDTH : 0]     rd_ptr_gray_wr_clk;
+logic [ADDR_WIDTH : 0]     rd_ptr_gray_wr_clk_mtstb;
+logic [ADDR_WIDTH : 0]     rd_ptr_wr_clk;
+logic [ADDR_WIDTH - 1 : 0] rd_addr;
+logic                      rd_en;
+
+logic                      data_in_mem;
+logic                      data_at_output;
+
+assign wr_used_words_o = wr_used_words;
+assign wr_full_o       = wr_full;
+assign wr_empty_o      = wr_empty;
+assign rd_used_words_o = rd_used_words;
+assign rd_full_o       = rd_full;
+assign rd_empty_o      = rd_empty;
+
+assign wr_req          = wr_i && !wr_full;
+assign wr_addr         = wr_ptr_wr_clk[ADDR_WIDTH - 1 : 0];
+assign rd_req          = rd_i && !rd_empty;
+assign rd_addr         = rd_ptr_rd_clk[ADDR_WIDTH - 1 : 0];
+
+always_ff @( posedge wr_clk_i, posedge rst_i )
+  if( rst_i )
+    wr_ptr_wr_clk <= '0;
+  else
+    if( wr_req )
+      wr_ptr_wr_clk <= wr_ptr_wr_clk + 1'b1;
+
+always_ff @( posedge wr_clk_i, posedge rst_i )
+  if( rst_i )
+    wr_ptr_gray_wr_clk <= '0;
+  else
+    wr_ptr_gray_wr_clk <= wr_ptr_wr_clk ^ ( wr_ptr_wr_clk >> 1 );
+
+always_ff @( posedge rd_clk_i, posedge rst_i )
+  if( rst_i )
+    wr_ptr_gray_rd_clk <= '0;
+  else
+    wr_ptr_gray_rd_clk <= wr_ptr_gray_wr_clk;
+
+always_ff @( posedge rd_clk_i, posedge rst_i )
+  if( rst_i )
+    wr_ptr_gray_rd_clk_mtstb <= '0;
+  else
+    wr_ptr_gray_rd_clk_mtstb <= wr_ptr_gray_rd_clk;
+
+always_ff @( posedge rd_clk_i, posedge rst_i )
+  if( rst_i )
+    wr_ptr_rd_clk <= '0;
+  else
+    wr_ptr_rd_clk <= wr_ptr_gray_rd_clk_mtstb ^ ( wr_ptr_gray_rd_clk_mtstb >> 1 );
+
+always_ff @( posedge rd_clk_i, posedge rst_i )
+  if( rst_i )
+    rd_ptr_rd_clk <= '0;
+  else
+    if( rd_req )
+      rd_ptr_rd_clk <= rd_ptr_rd_clk + 1'b1;
+
+always_ff @( posedge rd_clk_i, posedge rst_i )
+  if( rst_i )
+    rd_ptr_gray_rd_clk <= '0;
+  else
+    rd_ptr_gray_rd_clk <= rd_ptr_rd_clk ^ ( rd_ptr_rd_clk >> 1 );
+
+always_ff @( posedge wr_clk_i, posedge rst_i )
+  if( rst_i )
+    rd_ptr_gray_wr_clk <= '0;
+  else
+    rd_ptr_gray_wr_clk <= rd_ptr_gray_rd_clk;
+
+always_ff @( posedge wr_clk_i, posedge rst_i )
+  if( rst_i )
+    rd_ptr_gray_wr_clk_mtstb <= '0;
+  else
+    rd_ptr_gray_wr_clk_mtstb <= rd_ptr_gray_wr_clk;
+
+always_ff @( posedge wr_clk_i, posedge rst_i )
+  if( rst_i )
+    rd_ptr_wr_clk <= '0;
+  else
+    rd_ptr_wr_clk <= rd_ptr_gray_wr_clk_mtstb ^ ( rd_ptr_gray_wr_clk_mtstb >> 1 );
+
+assign wr_full       = wr_ptr_wr_clk[ADDR_WIDTH]         != rd_ptr_wr_clk[ADDR_WIDTH] &&
+                       wr_ptr_wr_clk[ADDR_WIDTH - 1 : 0] == rd_ptr_wr_clk[ADDR_WIDTH - 1 : 0];
+assign rd_full       = rd_ptr_rd_clk[ADDR_WIDTH]         != wr_ptr_rd_clk[ADDR_WIDTH] &&
+                       rd_ptr_rd_clk[ADDR_WIDTH - 1 : 0] == wr_ptr_rd_clk[ADDR_WIDTH - 1 : 0];
+assign wr_used_words = wr_ptr_wr_clk - rd_ptr_wr_clk;
+assign rd_used_words = wr_ptr_rd_clk - rd_ptr_rd_clk;
+assign wr_empty      = wr_ptr_wr_clk == rd_ptr_wr_clk;
+assign rd_empty      = !data_at_output;
+
+assign data_in_mem   = wr_ptr_rd_clk != rd_ptr_rd_clk;
+
+always_ff @( posedge rd_clk_i, posedge rst_i )
+  if( rst_i )
+    data_at_output <= '0;
+  else
+    if( rd_req || !data_at_output )
+      data_at_output <= data_in_mem;
+
+assign rd_en = data_in_mem && ( !data_at_output || rd_req )
+
+dual_port_ram #(
+  .DATA_WIDTH ( DATA_WIDTH ),
+  .ADDR_WIDTH ( ADDR_WIDTH )
+) ram (
+  .rst_i      ( rst_i      ),
+  .wr_clk_i   ( wr_clk_i   ),
+  .wr_addr_i  ( wr_addr    ),
+  .wr_data_i  ( wr_data_i  ),
+  .wr_i       ( wr_req     ),
+  .rd_clk_i   ( rd_clk_i   ),
+  .rd_addr_i  ( rd_addr    ),
+  .rd_data_o  ( rd_data_o  ),
+  .rd_i       ( rd_req     )
+);
+
+endmodule

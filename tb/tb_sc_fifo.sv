@@ -6,7 +6,8 @@ parameter int DATA_WIDTH   = 8;
 parameter int WORDS_AMOUNT = 8;
 parameter int CLK_T        = 10000;
 parameter int ADDR_WIDTH   = $clog2( WORDS_AMOUNT );
-parameter int FIFO_CAP     = 2**ADDR_WIDTH;
+
+parameter int OP_AMOUNT    = 1_000_000;
 
 bit                      clk;
 bit                      rst;
@@ -18,8 +19,9 @@ bit [ADDR_WIDTH : 0]     used_words;
 bit                      full;
 bit                      empty;
 
+bit [DATA_WIDTH - 1 : 0] ref_word;
 bit [DATA_WIDTH - 1 : 0] rd_word;
-bit [DATA_WIDTH - 1 : 0] ref_queue;
+bit [DATA_WIDTH - 1 : 0] ref_fifo [$];
 
 task automatic clk_gen();
   forever
@@ -39,28 +41,12 @@ endtask
 task automatic put_word_in_fifo(
   input bit [DATA_WIDTH - 1 : 0] word
 );
-  if( ref_queue.size() != used_words )
-    begin
-      $display( "FIFO used_words_o signal is %0d", used_words );
-      $dsiplay( "But should be %0d", ref_queue.size() );
-      $stop();
-    end
   while( full )
-    begin
-      if( ref_queue.size() != FIFO_CAP )
-        begin
-          $display( "FIFO asserted full signal, but it contatins only %0d words", ref_queue.size() );
-          $display( "FIFO capacity is %0d", FIFO_CAP );
-          $stop();
-        end
-      else
-        @( posedge clk );
-    end
-  wr      <= 1'b1;
-  wr_data <= word;
-  ref_queue.push_back( word );
+    @( posedge clk );
+  wr            <= 1'b1;
+  wr_data       <= word;
   @( posedge clk );
-  wr      <= 1'b0;
+  wr            <= 1'b0;
 endtask
 
 task automatic get_word_from_fifo(
@@ -68,10 +54,29 @@ task automatic get_word_from_fifo(
 );
   while( empty )
     @( posedge clk );
-  word  = rd_data;
-  rd   <= 1'b1;
+  rd            <= 1'b1;
   @( posedge clk );
-  rd   <= 1'b0;
+  word           = rd_data;
+  rd            <= 1'b0;
+endtask
+
+task automatic fifo_mon();
+  forever
+    begin
+      if( wr && !full )
+        ref_fifo.push_back( wr_data );
+      if( rd && !empty )
+        begin
+          ref_word = ref_fifo.pop_front( );
+          if( ref_word != rd_data )
+            begin
+              $display( "Wrong data! Was %0h, must be %0h", rd_data, ref_word );
+              @( posedge clk );
+              $stop();
+            end
+        end
+      @( posedge clk );
+    end
 endtask
 
 sc_fifo #(
@@ -93,26 +98,24 @@ initial
   begin
     fork
       clk_gen();
+      fifo_mon();
     join_none
     apply_rst();
-    repeat( 8 )
-      put_word_in_fifo( $urandom_range( 255 ) );
-    @( posedge clk );
-    repeat( 6 )
-      get_word_from_fifo( rd_word );
-    @( posedge clk );
-    repeat( 2 )
-      get_word_from_fifo( rd_word );
-    put_word_in_fifo( $urandom_range( 255 ) );
-    @( posedge clk );
     fork
-      repeat( 5 )
-        put_word_in_fifo( $urandom_range( 255 ) );
-    join_none
-    repeat( 6 )
-      get_word_from_fifo( rd_word );
+      repeat( OP_AMOUNT )
+        if( $urandom_range( 1 ) )
+          put_word_in_fifo( $urandom_range( 2**DATA_WIDTH - 1 ) );
+        else
+          @( posedge clk );
+      repeat( OP_AMOUNT )
+        if( $urandom_range( 1 ) )
+          get_word_from_fifo( rd_word );
+        else
+          @( posedge clk );
+    join_any
     repeat( 10 )
       @( posedge clk );
+    $display( "Everything is fine." );
     $stop();
   end
 

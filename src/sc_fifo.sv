@@ -77,7 +77,7 @@ always_ff @( posedge clk_i, posedge rst_i )
   if( rst_i )
     data_at_output <= '0;
   else
-    // !data_at_ouput == empty, so we become not empty
+    // !data_at_output == empty, so we become not empty
     // when there is data in memory
     // when somebody reads from FIFO the data is removed
     // from the output and it trys to refresh it from
