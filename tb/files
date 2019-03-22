@@ -1,0 +1,3 @@
+../ip/dual_port_ram/src/dual_port_ram.sv
+../src/sc_fifo.sv
+./tb_sc_fifo.sv
