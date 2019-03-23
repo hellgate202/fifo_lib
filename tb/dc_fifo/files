@@ -1,0 +1,5 @@
+../ip/dual_port_ram/src/dual_port_ram.sv
+../src/bin2gray.sv
+../src/gray2bin.sv
+../src/dc_fifo.sv
+./dc_fifo/tb_dc_fifo.sv

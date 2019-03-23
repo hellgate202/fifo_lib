@@ -12,7 +12,7 @@ module dc_fifo #(
   input                       rd_clk_i,
   output [DATA_WIDTH - 1 : 0] rd_data_o,
   input                       rd_i,
-  output [ADDR_WIDTH - 1 : 0] rd_used_words_o,
+  output [ADDR_WIDTH : 0]     rd_used_words_o,
   output                      rd_full_o,
   output                      rd_empty_o,
   input                       rst_i
@@ -23,9 +23,11 @@ logic [ADDR_WIDTH : 0]     wr_used_words;
 logic                      wr_full;
 logic                      wr_empty;
 logic [ADDR_WIDTH : 0]     wr_ptr_wr_clk;
+logic [ADDR_WIDTH : 0]     wr_ptr_gray_wr_clk_comb;
 logic [ADDR_WIDTH : 0]     wr_ptr_gray_wr_clk;
 logic [ADDR_WIDTH : 0]     wr_ptr_gray_rd_clk;
 logic [ADDR_WIDTH : 0]     wr_ptr_gray_rd_clk_mtstb;
+logic [ADDR_WIDTH : 0]     wr_ptr_rd_clk_comb;
 logic [ADDR_WIDTH : 0]     wr_ptr_rd_clk;
 logic [ADDR_WIDTH - 1 : 0] wr_addr;
 
@@ -34,9 +36,11 @@ logic [ADDR_WIDTH : 0]     rd_used_words;
 logic                      rd_full;
 logic                      rd_empty;
 logic [ADDR_WIDTH : 0]     rd_ptr_rd_clk;
+logic [ADDR_WIDTH : 0]     rd_ptr_gray_rd_clk_comb;
 logic [ADDR_WIDTH : 0]     rd_ptr_gray_rd_clk;
 logic [ADDR_WIDTH : 0]     rd_ptr_gray_wr_clk;
 logic [ADDR_WIDTH : 0]     rd_ptr_gray_wr_clk_mtstb;
+logic [ADDR_WIDTH : 0]     rd_ptr_wr_clk_comb;
 logic [ADDR_WIDTH : 0]     rd_ptr_wr_clk;
 logic [ADDR_WIDTH - 1 : 0] rd_addr;
 logic                      rd_en;
@@ -67,11 +71,18 @@ always_ff @( posedge wr_clk_i, posedge rst_i )
       wr_ptr_wr_clk <= wr_ptr_wr_clk + 1'b1;
 
 // Conversion to the Gray code
+bin2gray #(
+  .DATA_WIDTH ( ADDR_WIDTH + 1          )
+) wr_ptr_to_gray_enc (
+  .bin_i      ( wr_ptr_wr_clk           ),
+  .gray_o     ( wr_ptr_gray_wr_clk_comb )
+);
+
 always_ff @( posedge wr_clk_i, posedge rst_i )
   if( rst_i )
     wr_ptr_gray_wr_clk <= '0;
   else
-    wr_ptr_gray_wr_clk <= wr_ptr_wr_clk ^ ( wr_ptr_wr_clk >> 1 );
+    wr_ptr_gray_wr_clk <= wr_ptr_gray_wr_clk_comb;
 
 // Clock domain crossing
 always_ff @( posedge rd_clk_i, posedge rst_i )
@@ -88,25 +99,40 @@ always_ff @( posedge rd_clk_i, posedge rst_i )
     wr_ptr_gray_rd_clk_mtstb <= wr_ptr_gray_rd_clk;
 
 // Gray code decoding
+gray2bin #(
+  .DATA_WIDTH ( ADDR_WIDTH + 1           )
+) wr_ptr_from_gray_dec (
+  .gray_i     ( wr_ptr_gray_rd_clk_mtstb ),
+  .bin_o      ( wr_ptr_rd_clk_comb       )
+);
+
 always_ff @( posedge rd_clk_i, posedge rst_i )
   if( rst_i )
     wr_ptr_rd_clk <= '0;
   else
-    wr_ptr_rd_clk <= wr_ptr_gray_rd_clk_mtstb ^ ( wr_ptr_gray_rd_clk_mtstb >> 1 );
+    wr_ptr_rd_clk <= wr_ptr_rd_clk_comb;
 
 // Everything is the same as for write pointer
 always_ff @( posedge rd_clk_i, posedge rst_i )
   if( rst_i )
     rd_ptr_rd_clk <= '0;
   else
-    if( rd_req )
+    if( rd_en )
       rd_ptr_rd_clk <= rd_ptr_rd_clk + 1'b1;
+
+// Conversion to the Gray code
+bin2gray #(
+  .DATA_WIDTH ( ADDR_WIDTH + 1          )
+) rd_ptr_to_gray_enc (
+  .bin_i      ( rd_ptr_rd_clk           ),
+  .gray_o     ( rd_ptr_gray_rd_clk_comb )
+);
 
 always_ff @( posedge rd_clk_i, posedge rst_i )
   if( rst_i )
     rd_ptr_gray_rd_clk <= '0;
   else
-    rd_ptr_gray_rd_clk <= rd_ptr_rd_clk ^ ( rd_ptr_rd_clk >> 1 );
+    rd_ptr_gray_rd_clk <= rd_ptr_gray_rd_clk_comb;
 
 always_ff @( posedge wr_clk_i, posedge rst_i )
   if( rst_i )
@@ -120,11 +146,19 @@ always_ff @( posedge wr_clk_i, posedge rst_i )
   else
     rd_ptr_gray_wr_clk_mtstb <= rd_ptr_gray_wr_clk;
 
+// Gray code decoding
+gray2bin #(
+  .DATA_WIDTH ( ADDR_WIDTH + 1           )
+) rd_ptr_from_gray_dec (
+  .gray_i     ( rd_ptr_gray_wr_clk_mtstb ),
+  .bin_o      ( rd_ptr_wr_clk_comb       )
+);
+
 always_ff @( posedge wr_clk_i, posedge rst_i )
   if( rst_i )
     rd_ptr_wr_clk <= '0;
   else
-    rd_ptr_wr_clk <= rd_ptr_gray_wr_clk_mtstb ^ ( rd_ptr_gray_wr_clk_mtstb >> 1 );
+    rd_ptr_wr_clk <= rd_ptr_wr_clk_comb;
 
 // MSB serves for indication if we are catching read pointer from behind
 assign wr_full       = wr_ptr_wr_clk[ADDR_WIDTH]         != rd_ptr_wr_clk[ADDR_WIDTH] &&
@@ -150,7 +184,7 @@ always_ff @( posedge rd_clk_i, posedge rst_i )
     if( rd_req || !data_at_output )
       data_at_output <= data_in_mem;
 
-assign rd_en = data_in_mem && ( !data_at_output || rd_req )
+assign rd_en = data_in_mem && ( !data_at_output || rd_req );
 
 dual_port_ram #(
   .DATA_WIDTH ( DATA_WIDTH ),
@@ -164,7 +198,7 @@ dual_port_ram #(
   .rd_clk_i   ( rd_clk_i   ),
   .rd_addr_i  ( rd_addr    ),
   .rd_data_o  ( rd_data_o  ),
-  .rd_i       ( rd_req     )
+  .rd_i       ( rd_en      )
 );
 
 endmodule
