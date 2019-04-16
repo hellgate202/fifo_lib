@@ -48,6 +48,30 @@ logic                      rd_en;
 logic                      data_in_mem;
 logic                      data_at_output;
 
+logic                      rst_rd_clk_d1;
+logic                      rst_rd_clk_d2;
+logic                      rst_rd_clk;
+
+logic                      rst_wr_clk_d1;
+logic                      rst_wr_clk_d2;
+logic                      rst_wr_clk;
+
+always_ff @( posedge rd_clk_i )
+  begin
+    rst_rd_clk_d1 <= rst_i;
+    rst_rd_clk_d2 <= rst_rd_clk_d1;
+  end
+
+assign rst_rd_clk = rst_rd_clk_d2;
+
+always_ff @( posedge wr_clk_i )
+  begin
+    rst_wr_clk_d1 <= rst_i;
+    rst_wr_clk_d2 <= rst_wr_clk_d1;
+  end
+
+assign rst_wr_clk = rst_wr_clk_d2;
+
 assign wr_used_words_o = wr_used_words;
 assign wr_full_o       = wr_full;
 assign wr_empty_o      = wr_empty;
@@ -63,8 +87,8 @@ assign rd_req          = rd_i && !rd_empty;
 assign rd_addr         = rd_ptr_rd_clk[ADDR_WIDTH - 1 : 0];
 
 // Basic address counter
-always_ff @( posedge wr_clk_i, posedge rst_i )
-  if( rst_i )
+always_ff @( posedge wr_clk_i, posedge rst_wr_clk )
+  if( rst_wr_clk )
     wr_ptr_wr_clk <= '0;
   else
     if( wr_req )
@@ -78,22 +102,22 @@ bin2gray #(
   .gray_o     ( wr_ptr_gray_wr_clk_comb )
 );
 
-always_ff @( posedge wr_clk_i, posedge rst_i )
-  if( rst_i )
+always_ff @( posedge wr_clk_i, posedge rst_wr_clk )
+  if( rst_wr_clk )
     wr_ptr_gray_wr_clk <= '0;
   else
     wr_ptr_gray_wr_clk <= wr_ptr_gray_wr_clk_comb;
 
 // Clock domain crossing
-always_ff @( posedge rd_clk_i, posedge rst_i )
-  if( rst_i )
+always_ff @( posedge rd_clk_i, posedge rst_rd_clk )
+  if( rst_rd_clk )
     wr_ptr_gray_rd_clk <= '0;
   else
     wr_ptr_gray_rd_clk <= wr_ptr_gray_wr_clk;
 
 // Delay for metastability protection
-always_ff @( posedge rd_clk_i, posedge rst_i )
-  if( rst_i )
+always_ff @( posedge rd_clk_i, posedge rst_rd_clk )
+  if( rst_rd_clk )
     wr_ptr_gray_rd_clk_mtstb <= '0;
   else
     wr_ptr_gray_rd_clk_mtstb <= wr_ptr_gray_rd_clk;
@@ -106,15 +130,15 @@ gray2bin #(
   .bin_o      ( wr_ptr_rd_clk_comb       )
 );
 
-always_ff @( posedge rd_clk_i, posedge rst_i )
-  if( rst_i )
+always_ff @( posedge rd_clk_i, posedge rst_rd_clk )
+  if( rst_rd_clk )
     wr_ptr_rd_clk <= '0;
   else
     wr_ptr_rd_clk <= wr_ptr_rd_clk_comb;
 
 // Everything is the same as for write pointer
-always_ff @( posedge rd_clk_i, posedge rst_i )
-  if( rst_i )
+always_ff @( posedge rd_clk_i, posedge rst_rd_clk )
+  if( rst_rd_clk )
     rd_ptr_rd_clk <= '0;
   else
     if( rd_en )
@@ -128,20 +152,20 @@ bin2gray #(
   .gray_o     ( rd_ptr_gray_rd_clk_comb )
 );
 
-always_ff @( posedge rd_clk_i, posedge rst_i )
-  if( rst_i )
+always_ff @( posedge rd_clk_i, posedge rst_rd_clk )
+  if( rst_rd_clk )
     rd_ptr_gray_rd_clk <= '0;
   else
     rd_ptr_gray_rd_clk <= rd_ptr_gray_rd_clk_comb;
 
-always_ff @( posedge wr_clk_i, posedge rst_i )
-  if( rst_i )
+always_ff @( posedge wr_clk_i, posedge rst_wr_clk )
+  if( rst_wr_clk )
     rd_ptr_gray_wr_clk <= '0;
   else
     rd_ptr_gray_wr_clk <= rd_ptr_gray_rd_clk;
 
-always_ff @( posedge wr_clk_i, posedge rst_i )
-  if( rst_i )
+always_ff @( posedge wr_clk_i, posedge rst_wr_clk )
+  if( rst_wr_clk )
     rd_ptr_gray_wr_clk_mtstb <= '0;
   else
     rd_ptr_gray_wr_clk_mtstb <= rd_ptr_gray_wr_clk;
@@ -154,8 +178,8 @@ gray2bin #(
   .bin_o      ( rd_ptr_wr_clk_comb       )
 );
 
-always_ff @( posedge wr_clk_i, posedge rst_i )
-  if( rst_i )
+always_ff @( posedge wr_clk_i, posedge rst_wr_clk )
+  if( rst_wr_clk )
     rd_ptr_wr_clk <= '0;
   else
     rd_ptr_wr_clk <= rd_ptr_wr_clk_comb;
@@ -190,7 +214,6 @@ dual_port_ram #(
   .DATA_WIDTH ( DATA_WIDTH ),
   .ADDR_WIDTH ( ADDR_WIDTH )
 ) ram (
-  .rst_i      ( rst_i      ),
   .wr_clk_i   ( wr_clk_i   ),
   .wr_addr_i  ( wr_addr    ),
   .wr_data_i  ( wr_data_i  ),
