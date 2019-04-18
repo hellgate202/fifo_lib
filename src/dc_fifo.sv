@@ -56,19 +56,31 @@ module dc_fifo #(
 (* ASYNC_REG = "true" *) logic                      rst_wr_clk_d2;
                          logic                      rst_wr_clk;
 
-always_ff @( posedge rd_clk_i )
-  begin
-    rst_rd_clk_d1 <= rst_i;
-    rst_rd_clk_d2 <= rst_rd_clk_d1;
-  end
+always_ff @( posedge rd_clk_i, posedge rst_i )
+  if( rst_i )
+    begin
+      rst_rd_clk_d1 <= 1'b1;
+      rst_rd_clk_d2 <= 1'b1;
+    end
+  else
+    begin
+      rst_rd_clk_d1 <= 1'b0;
+      rst_rd_clk_d2 <= rst_rd_clk_d1;
+    end
 
 assign rst_rd_clk = rst_rd_clk_d2;
 
-always_ff @( posedge wr_clk_i )
-  begin
-    rst_wr_clk_d1 <= rst_i;
-    rst_wr_clk_d2 <= rst_wr_clk_d1;
-  end
+always_ff @( posedge wr_clk_i, posedge rst_i )
+  if( rst_i )
+    begin
+      rst_wr_clk_d1 <= 1'b1;
+      rst_wr_clk_d2 <= 1'b1;
+    end
+  else
+    begin
+      rst_wr_clk_d1 <= 1'b0;
+      rst_wr_clk_d2 <= rst_wr_clk_d1;
+    end
 
 assign rst_wr_clk = rst_wr_clk_d2;
 
