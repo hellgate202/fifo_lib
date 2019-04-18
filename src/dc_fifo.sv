@@ -18,43 +18,43 @@ module dc_fifo #(
   input                       rst_i
 );
 
-                         logic                      wr_req;
-                         logic [ADDR_WIDTH : 0]     wr_used_words;
-                         logic                      wr_full;
-                         logic                      wr_empty;
-                         logic [ADDR_WIDTH : 0]     wr_ptr_wr_clk;
-                         logic [ADDR_WIDTH : 0]     wr_ptr_gray_wr_clk_comb;
-                         logic [ADDR_WIDTH : 0]     wr_ptr_gray_wr_clk;
-(* ASYNC_REG = "TRUE" *) logic [ADDR_WIDTH : 0]     wr_ptr_gray_rd_clk;
-(* ASYNC_REG = "TRUE" *) logic [ADDR_WIDTH : 0]     wr_ptr_gray_rd_clk_mtstb;
-                         logic [ADDR_WIDTH : 0]     wr_ptr_rd_clk_comb;
-                         logic [ADDR_WIDTH : 0]     wr_ptr_rd_clk;
-                         logic [ADDR_WIDTH - 1 : 0] wr_addr;
-                         
-                         logic                      rd_req;
-                         logic [ADDR_WIDTH : 0]     rd_used_words;
-                         logic                      rd_full;
-                         logic                      rd_empty;
-                         logic [ADDR_WIDTH : 0]     rd_ptr_rd_clk;
-                         logic [ADDR_WIDTH : 0]     rd_ptr_gray_rd_clk_comb;
-                         logic [ADDR_WIDTH : 0]     rd_ptr_gray_rd_clk;
-(* ASYNC_REG = "TRUE" *) logic [ADDR_WIDTH : 0]     rd_ptr_gray_wr_clk;
-(* ASYNC_REG = "TRUE" *) logic [ADDR_WIDTH : 0]     rd_ptr_gray_wr_clk_mtstb;
-                         logic [ADDR_WIDTH : 0]     rd_ptr_wr_clk_comb;
-                         logic [ADDR_WIDTH : 0]     rd_ptr_wr_clk;
-                         logic [ADDR_WIDTH - 1 : 0] rd_addr;
-                         logic                      rd_en;
-                         
-                         logic                      data_in_mem;
-                         logic                      data_at_output;
+logic                      wr_req;
+logic [ADDR_WIDTH : 0]     wr_used_words;
+logic                      wr_full;
+logic                      wr_empty;
+logic [ADDR_WIDTH : 0]     wr_ptr_wr_clk;
+logic [ADDR_WIDTH : 0]     wr_ptr_gray_wr_clk_comb;
+logic [ADDR_WIDTH : 0]     wr_ptr_gray_wr_clk;
+logic [ADDR_WIDTH : 0]     wr_ptr_gray_rd_clk;
+logic [ADDR_WIDTH : 0]     wr_ptr_gray_rd_clk_mtstb;
+logic [ADDR_WIDTH : 0]     wr_ptr_rd_clk_comb;
+logic [ADDR_WIDTH : 0]     wr_ptr_rd_clk;
+logic [ADDR_WIDTH - 1 : 0] wr_addr;
 
-(* ASYNC_REG = "true" *) logic                      rst_rd_clk_d1;
-(* ASYNC_REG = "true" *) logic                      rst_rd_clk_d2;
-                         logic                      rst_rd_clk;
+logic                      rd_req;
+logic [ADDR_WIDTH : 0]     rd_used_words;
+logic                      rd_full;
+logic                      rd_empty;
+logic [ADDR_WIDTH : 0]     rd_ptr_rd_clk;
+logic [ADDR_WIDTH : 0]     rd_ptr_gray_rd_clk_comb;
+logic [ADDR_WIDTH : 0]     rd_ptr_gray_rd_clk;
+logic [ADDR_WIDTH : 0]     rd_ptr_gray_wr_clk;
+logic [ADDR_WIDTH : 0]     rd_ptr_gray_wr_clk_mtstb;
+logic [ADDR_WIDTH : 0]     rd_ptr_wr_clk_comb;
+logic [ADDR_WIDTH : 0]     rd_ptr_wr_clk;
+logic [ADDR_WIDTH - 1 : 0] rd_addr;
+logic                      rd_en;
 
-(* ASYNC_REG = "true" *) logic                      rst_wr_clk_d1;
-(* ASYNC_REG = "true" *) logic                      rst_wr_clk_d2;
-                         logic                      rst_wr_clk;
+logic                      data_in_mem;
+logic                      data_at_output;
+
+logic                      rst_rd_clk_d1;
+logic                      rst_rd_clk_d2;
+logic                      rst_rd_clk;
+
+logic                      rst_wr_clk_d1;
+logic                      rst_wr_clk_d2;
+logic                      rst_wr_clk;
 
 always_ff @( posedge rd_clk_i, posedge rst_i )
   if( rst_i )
