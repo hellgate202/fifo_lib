@@ -129,7 +129,6 @@ dual_port_ram #(
   .DATA_WIDTH ( DATA_WIDTH ),
   .ADDR_WIDTH ( ADDR_WIDTH )
 ) ram (
-  .rst_i      ( rst_i      ),
   .wr_clk_i   ( clk_i      ),
   .wr_addr_i  ( wr_addr    ),
   .wr_data_i  ( wr_data_i  ),
