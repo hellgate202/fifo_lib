@@ -1,3 +1,6 @@
 [submodule "ip/dual_port_ram"]
 	path = ip/dual_port_ram
 	url = https://github.com/hellgate202/dual_port_ram/
+[submodule "lib/axi4_lib"]
+	path = lib/axi4_lib
+	url = https://github.com/hellgate202/axi4_lib
