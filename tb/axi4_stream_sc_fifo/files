@@ -1,0 +1,4 @@
+../ip/dual_port_ram/src/dual_port_ram.sv
+../lib/axi4_lib/src/interface/axi4_stream_if.sv
+../src/axi4_stream_sc_fifo.sv
+./axi4_stream_sc_fifo/tb_axi4_stream_sc_fifo.sv

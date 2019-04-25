@@ -1,10 +1,11 @@
 module axi4_stream_sc_fifo #(
+  parameter int BUFFER_DEPTH       = 64,
   parameter int DATA_WIDTH         = 32,
   parameter int USER_WIDTH         = 1,
   parameter int DEST_WIDTH         = 1,
   parameter int ID_WIDTH           = 1,
-  parameter int CONTINIOUS_TVALID  = 0,
-  parameter int ALLOW_BACKPRESSURE = 1
+  parameter int CONTINIOUS_TVALID  = 1,
+  parameter int ALLOW_BACKPRESSURE = 0
 )(
   input                 clk_i,
   input                 rst_i,
@@ -12,6 +13,7 @@ module axi4_stream_sc_fifo #(
   axi4_stream_if.master pkt_o
 );
 
+localparam int ADDR_WIDTH   = $clog2( BUFFER_DEPTH );
 localparam int DATA_WIDTH_B = DATA_WIDTH / 8;
 localparam int FIFO_WIDTH   = DATA_WIDTH + USER_WIDTH + DEST_WIDTH + 
                               ID_WIDTH + 2 * DATA_WIDTH_B + 1;
@@ -36,8 +38,8 @@ logic                      rd_req;
 logic [ADDR_WIDTH : 0]     used_words;
 logic                      rd_en;
 
-logic                      wr_req;
-logic                      rd_req;
+logic                      data_in_mem;
+logic                      data_at_output;
 
 logic                      pkt_running;
 logic                      first_word;
@@ -131,10 +133,10 @@ always_ff @( posedge clk_i, posedge rst_i )
 always_comb
   begin
     full_comb = full;
-    if( wr_req && !rd_req )
+    if( pkt_i.tvalid && !pkt_o.tready )
       full_comb = used_words == ( 2 ** ADDR_WIDTH - 1 );
     else
-      if( !wr_addr && rd_req )
+      if( pkt_o.tready && !pkt_i.tvalid )
         full_comb = 1'b0;
   end
 
@@ -181,7 +183,7 @@ always_ff @( posedge clk_i, posedge rst_i )
       if( ALLOW_BACKPRESSURE == 0 && ( full_comb || fifo_overflow ) )
         wr_addr <= pkt_start_addr;
       else
-        if ( data_in_mem && data_at_output || !rd_req && used_words == 'd1 ) )
+        if( data_in_mem && data_at_output || !rd_req && used_words == 'd1 )
           wr_addr <= wr_addr + 1'b1;
 
 always_ff @( posedge clk_i, posedge rst_i )
