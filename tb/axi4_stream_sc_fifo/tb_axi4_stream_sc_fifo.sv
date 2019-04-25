@@ -29,6 +29,7 @@ bit rst;
 pkt_q tx_pkt;
 pkt_q rx_pkt;
 pkt_q tx_pkt_pool [$];
+pkt_q rx_pkt_pool [$];
 
 task automatic clk_gen();
   forever
@@ -50,14 +51,14 @@ task automatic pkt_check();
     if( rx_mbx.num() )
       begin
         rx_mbx.get( rx_pkt );
-        for( int i = 0; i < tx_pkt_pool.size(); i++ )
-          if( rx_pkt == tx_pkt_pool[i] )
+        for( int i = 0; i < rx_pkt_pool.size(); i++ )
+          if( rx_pkt == rx_pkt_pool[i] )
             begin
-              tx_pkt_pool.delete(i);
+              rx_pkt_pool.delete(i);
               break;
             end
           else
-            if( i == ( tx_pkt_pool.size() - 1 ) )
+            if( i == ( rx_pkt_pool.size() - 1 ) )
               begin
                 $display( "Corrupted packet" );
                 for( int i = 0; i < rx_pkt.size(); i++ )
@@ -149,18 +150,18 @@ initial
         tx_pkt = create_pkt( $urandom_range( MAX_PKT_SIZE_B, MIN_PKT_SIZE_B ) );
         tx_pkt_pool.push_back( tx_pkt );
       end
+    rx_pkt_pool = tx_pkt_pool;
     for( int i = 0; i < PKTS_AMOUNT; i++ )
       begin
-        $display( "!!!" );
-        $display( $time() );
         tx_pkt = tx_pkt_pool[i];
-        pkt_sender.tx_data( tx_pkt );
-        wait( pkt_sender.pkt_end.triggered );
+        pkt_sender.send_pkt( tx_pkt );
+        @( pkt_sender.pkt_end );
       end
     @( posedge clk );
     while( pkt_o.tvalid )
       @( posedge clk );
-    $display( "%0d packets were droped", tx_pkt_pool.size() );
+    @( posedge clk );
+    $display( "%0d packets were droped", rx_pkt_pool.size() );
     $display( "Everything is fine." );
     repeat( 10 )
       @( posedge clk );
