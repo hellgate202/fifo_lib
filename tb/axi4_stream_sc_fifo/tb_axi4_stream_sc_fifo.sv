@@ -5,7 +5,7 @@
 
 module tb_axi4_stream_sc_fifo;
 
-parameter int BUFFER_DEPTH       = 101;
+parameter int BUFFER_DEPTH       = 16;
 parameter int DATA_WIDTH         = 32;
 parameter int USER_WIDTH         = 1;
 parameter int DEST_WIDTH         = 1;
@@ -13,11 +13,11 @@ parameter int ID_WIDTH           = 1;
 parameter int CONTINIOUS_TVALID  = 1;
 parameter int ALLOW_BACKPRESSURE = 0;
 
-parameter int RANDOM_TVALID      = 1;
+parameter int RANDOM_TVALID      = 0;
 parameter int RANDOM_TREADY      = 1;
-parameter int PKTS_AMOUNT        = 10;
-parameter int MAX_PKT_SIZE_B     = 100;
-parameter int MIN_PKT_SIZE_B     = 40;
+parameter int PKTS_AMOUNT        = 10000;
+parameter int MAX_PKT_SIZE_B     = 8;
+parameter int MIN_PKT_SIZE_B     = 8;
 
 parameter int CLK_T = 5000;
 
@@ -160,6 +160,7 @@ initial
     @( posedge clk );
     while( pkt_o.tvalid )
       @( posedge clk );
+    @( posedge clk );
     @( posedge clk );
     $display( "%0d packets were droped", rx_pkt_pool.size() );
     $display( "Everything is fine." );
