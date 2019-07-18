@@ -11,8 +11,8 @@ proc draw_waveforms { tb_name } {
 
 proc sc_fifo {} {
   compile_src sc_fifo
-  vopt +acc tb_sc_fifo -o tb_sc_fifo_opt
-  vsim tb_sc_fifo_opt
+  #vopt +acc tb_sc_fifo -o tb_sc_fifo_opt
+  vsim tb_sc_fifo
   draw_waveforms sc_fifo
   run -all
 }

@@ -21,24 +21,25 @@ logic [ADDR_WIDTH - 1 : 0] rd_addr;
 logic                      rd_req;
 logic                      empty;
 logic [ADDR_WIDTH : 0]     used_words;
+// Moving data from RAM to output reg
 logic                      rd_en;
+// There is unread data in RAM
+logic                      data_in_ram;
+// There is unread data at output reg
+logic                      data_in_rd_data;
+// More than one word in RAM
+logic                      svrl_w_in_mem;
+// At least one word in RAM
+logic                      mem_not_empty;
 
 assign full_o       = full;
 assign empty_o      = empty;
 assign used_words_o = used_words;
 // Protection from write into full FIFO.
-assign wr_req       = wr_i && ~full;
+assign wr_req       = wr_i && !full;
 // Protection from read from empty FIFO.
-assign rd_req       = rd_i && ~empty;
+assign rd_req       = rd_i && !empty;
 
-// We have unread data in memory.
-logic data_in_mem;
-// We have unread data at output.
-logic data_at_output;
-
-// Represents how many words are in FIFO
-// but doesn't represent how many words are in
-// memory.
 always_ff @( posedge clk_i, posedge rst_i )
   if( rst_i )
     used_words <= '0;
@@ -49,39 +50,34 @@ always_ff @( posedge clk_i, posedge rst_i )
       if( !wr_req && rd_req )
         used_words <= used_words - 1'b1;
 
+// Relationship of used_words signal to words amount in RAM
+// used_words signal represents how many words we have stored in FIFO
+// But FIFO consists not only of RAM memory, but also ща
+assign svrl_w_in_mem = used_words > 'd2;
+assign mem_not_empty = used_words > 'd1;
+
 always_ff @( posedge clk_i, posedge rst_i )
   if( rst_i )
-    data_in_mem <= '0;
+    data_in_ram <= '0;
   else
-    if( data_in_mem )
+    if( data_in_ram )
       begin
-        // If we want to get data from fifo
-        // wr_req means it is read during write.
-        // When used_words == 'd2 && rd_req appears
-        // that means that it is going to be 'd1
-        // which also means we don't have data in memory
-        // but only at output.
         if( rd_req )
-          data_in_mem <= wr_req || ( used_words > 'd2 );
+          data_in_ram <= wr_req || svrl_w_in_mem;
         else
-          // This is the case for the first write after
-          // FIFO was empty.
-          if( ~data_at_output )
-            data_in_mem <= wr_req;
+          if( empty )
+            data_in_ram <= wr_req;
       end
     else
-      // Data appears at memory right after wr_req.
-      data_in_mem <= wr_req;
+      data_in_ram <= wr_req;
 
 always_ff @( posedge clk_i, posedge rst_i )
   if( rst_i )
     data_at_output <= '0;
   else
-    // !data_at_output == empty, so we become not empty
-    // when there is data in memory
-    // when somebody reads from FIFO the data is removed
-    // from the output and it trys to refresh it from
-    // data_in_mem.
+    // If there is data in ram[rd_addr_i] it will move to rd_data reg at read
+    // request (feed new data to output) or when there is no data at output
+    // (See data_in_mem always block)
     if( rd_req || !data_at_output )
       data_at_output <= data_in_mem;
 
@@ -123,7 +119,7 @@ always_ff @( posedge clk_i, posedge rst_i )
 
 // We generate one read strobe when there is no data at output to
 // push data to output and gain new data if available
-assign rd_en = data_in_mem && !data_at_output || rd_req;
+assign rd_en = data_in_mem && ( !data_at_output || rd_req );
 
 dual_port_ram #(
   .DATA_WIDTH ( DATA_WIDTH ),
