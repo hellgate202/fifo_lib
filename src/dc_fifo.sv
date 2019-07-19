@@ -56,6 +56,7 @@ logic                      rst_wr_clk_d1;
 logic                      rst_wr_clk_d2;
 logic                      rst_wr_clk;
 
+// Asynchronous assert and synchronous deassert
 always_ff @( posedge rd_clk_i, posedge rst_i )
   if( rst_i )
     begin

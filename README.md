@@ -1,4 +1,4 @@
 FIFO Library
 ============
 
-Contains Dual-clock FIFO and Single-clock FIFO
+Contains Dual-clock FIFO and Single-clock FIFO in show-ahead mode

@@ -7,6 +7,7 @@ parameter int WORDS_AMOUNT = 8;
 parameter int CLK_T        = 10000;
 parameter int ADDR_WIDTH   = $clog2( WORDS_AMOUNT );
 
+// Amount of operation to perform
 parameter int OP_AMOUNT    = 1_000_000;
 
 bit                      clk;
@@ -19,8 +20,11 @@ bit [ADDR_WIDTH : 0]     used_words;
 bit                      full;
 bit                      empty;
 
+// What we get from queue
 bit [DATA_WIDTH - 1 : 0] ref_word;
+// What we get from FIFO
 bit [DATA_WIDTH - 1 : 0] rd_word;
+// We use SystemVerilog queue to compare with FIFO
 bit [DATA_WIDTH - 1 : 0] ref_fifo [$];
 
 task automatic clk_gen();
@@ -102,6 +106,8 @@ initial
     join_none
     apply_rst();
     fork
+      // Two parallel processess with 50/50 probability in every tick
+      // trying to perform read and write operations
       repeat( OP_AMOUNT )
         if( $urandom_range( 1 ) )
           put_word_in_fifo( $urandom_range( 2**DATA_WIDTH - 1 ) );

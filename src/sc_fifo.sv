@@ -26,11 +26,13 @@ logic                      rd_en;
 // There is unread data in RAM
 logic                      data_in_ram;
 // There is unread data at output reg
-logic                      data_in_rd_data;
+logic                      data_in_o_reg;
 // More than one word in RAM
 logic                      svrl_w_in_mem;
 // At least one word in RAM
-logic                      mem_not_empty;
+logic                      mem_n_empty;
+// First word in FIFO datapath after empty
+logic                      first_word;
 
 assign full_o       = full;
 assign empty_o      = empty;
@@ -50,76 +52,134 @@ always_ff @( posedge clk_i, posedge rst_i )
       if( !wr_req && rd_req )
         used_words <= used_words - 1'b1;
 
-// Relationship of used_words signal to words amount in RAM
+// Relationship of used_words signal to words amount in RAM and
+// data_in_ram and data_in_o_reg behavior
 // used_words signal represents how many words we have stored in FIFO
-// But FIFO consists not only of RAM memory, but also ща
-assign svrl_w_in_mem = used_words > 'd2;
-assign mem_not_empty = used_words > 'd1;
+// But FIFO consists not only of RAM memory, but also of output register.
+// 0. used_words == 0; no data was written neither to RAM nor to output reg
+// 1. used_words == 1; one word of data was written either to RAM or to
+//    output reg. After being read FIFO becomes empty.
+//                   __    __    __    __    __    __
+//    clk_i         /  \__/  \__/  \__/  \__/  \__/  \__
+//                   _____
+//    wr_i          /     \_____________________________
+//                                           _____
+//    rd_i          ________________________/     \_____
+//                         _____
+//    data_in_ram   ______/     \_______________________
+//                               _________________
+//    data_in_o_reg ____________/                 \_____
+//                  ______ _______________________ _____
+//    used_words    ___0__X____________1__________X__0__
+//
+// 2. used_words == 2; one word of data was written both to RAM and to output
+//    reg. After being read only word in output reg is left
+//                   __    __    __    __    __    __
+//    clk_i         /  \__/  \__/  \__/  \__/  \__/  \__
+//                   ___________
+//    wr_i          /           \_______________________
+//                                           _____
+//    rd_i          ________________________/     \_____
+//                         _______________________
+//    data_in_ram   ______/                       \_____
+//                               _______________________
+//    data_in_o_reg ____________/
+//                  ______ _____ ___________ ___________
+//    used_words    ___0__X__1__X_____2_____X_____1_____
+//
+// 3. used_words > 2; several words of data was written both to RAM and one
+//    word to output reg. After being read, at least one word will left in RAM
+//    and more than one word will left in FIFO
+//                   __    __    __    __    __    __
+//    clk_i         /  \__/  \__/  \__/  \__/  \__/  \__
+//                   _________________
+//    wr_i          /                 \_________________
+//                                           _____
+//    rd_i          ________________________/     \_____
+//                         _____________________________
+//    data_in_ram   ______/
+//                               _______________________
+//    data_in_o_reg ____________/
+//                  ______ _____ _____ _____ _____ _____
+//    used_words    ___0__X__1__X__2__X__3__X__2__X__1__
 
+assign svrl_w_in_mem = used_words > 'd2;
+assign mem_n_empty   = used_words > 'd1;
+assign first_word    = data_in_ram && !data_in_o_reg;
+
+// FIFO data output is provided by the output register im RAM 
+// module. In its turn the output register recieves data from
+// RAM. Output register will require new data in two cases:
+// 1. When read operation is requested
+// 2. When first word is written into FIFO after being empied
+always_ff @( posedge clk_i, posedge rst_i )
+  if( rst_i )
+    data_in_o_reg <= '0;
+  else
+    if( rd_req || first_word )
+      data_in_o_reg <= data_in_ram;
+
+// Pulling data from ram to output register
+assign rd_en = first_word || rd_req;
+assign empty = !data_in_o_reg;
+
+// There are 2 cases when data in RAM can be depleted:
+// 1. Read request will pull one word from RAM and after that 
+//    there will be another word if it was read-during-write operation
+//    or if there more than one word in RAM
+// 2. If we are writing to empty FIFO, then on the next tick data will move
+//    to the output register (first_word condition)
+// In other cases if there is no data in RAM wr_req will update data_in_ram
 always_ff @( posedge clk_i, posedge rst_i )
   if( rst_i )
     data_in_ram <= '0;
   else
-    if( data_in_ram )
-      begin
-        if( rd_req )
-          data_in_ram <= wr_req || svrl_w_in_mem;
-        else
-          if( empty )
-            data_in_ram <= wr_req;
-      end
+    if( rd_req )
+      data_in_ram <= wr_req || svrl_w_in_mem;
     else
-      data_in_ram <= wr_req;
+      if( first_word || !data_in_ram )
+        data_in_ram <= wr_req;
 
-always_ff @( posedge clk_i, posedge rst_i )
-  if( rst_i )
-    data_at_output <= '0;
-  else
-    // If there is data in ram[rd_addr_i] it will move to rd_data reg at read
-    // request (feed new data to output) or when there is no data at output
-    // (See data_in_mem always block)
-    if( rd_req || !data_at_output )
-      data_at_output <= data_in_mem;
-
+// In normal case we must increment write address every time we write data.
+// But here we have an output reg where we can also store data.
+// Purpose of incrementing write address is to preserve unread data in memory.
+// 1. We don't need to increment write address on empty FIFO (used_words == 0), 
+// because next tick data will move from memory to output register
+// 2. Due to the same reason, if used_words == 1 and this word is in the output
+// reg, and read request is applied then it will be free next tick and new data
+// can pass to the output register.
+// Except two cases above write address will increment if write request is
+// applied
 always_ff @( posedge clk_i, posedge rst_i )
   if( rst_i )
     wr_addr <= '0;
   else
-    // We store data not only in memory but also at output regeister
-    // That means that the first case when we can increment wr_addr is when there
-    // is actual data at the output and the memory (i.e. we need next address in
-    // memory). The second case is when we write first word (used_words == 'd1) and
-    // about to write second word. If will read at the same moment - data from
-    // mem will pass to output and we don't need to increment address.
-    if( wr_req && ( data_in_mem && data_at_output || !rd_req && used_words == 'd1 ) )
+    if( wr_req && ( data_in_ram || !rd_req && data_in_o_reg ) )
       wr_addr <= wr_addr + 1'b1;
 
+// When we apply read request we need to increment read address to move to
+// next data position if it is present.
+// Read requests are only valid when there is data at the output register
+// (i.e. FIFO is not empty to outside logic).
+// The following condition reperesnts, that if after we read data from
+// output register there will be another word in memory (data_in_ram == 1)
 always_ff @( posedge clk_i, posedge rst_i )
   if( rst_i )
     rd_addr <= '0;
   else
-    // We need to increment read address when we need to pass new data
-    // to output, i.e. first, we read and data from output is discarded,
-    // second, data from memory comes to output, third, we need new data
-    // to prepare.
-    if( rd_req && data_in_mem && data_at_output )
+    if( rd_req && data_in_ram )
       rd_addr <= rd_addr + 1'b1;
-
-assign empty = !data_at_output;
 
 always_ff @( posedge clk_i, posedge rst_i )
   if( rst_i )
     full <= '0;
   else
+    // One word more than in the memory, due to output register
     if( !rd_req && wr_req )
-      full <= used_words == ( 2**ADDR_WIDTH - 1 );
+      full <= used_words == ( 2**ADDR_WIDTH );
     else
       if( rd_req && !wr_req )
         full <= 1'b0;
-
-// We generate one read strobe when there is no data at output to
-// push data to output and gain new data if available
-assign rd_en = data_in_mem && ( !data_at_output || rd_req );
 
 dual_port_ram #(
   .DATA_WIDTH ( DATA_WIDTH ),
