@@ -36,12 +36,17 @@ logic                      full;
 logic [ADDR_WIDTH - 1 : 0] rd_addr;
 logic                      rd_req;
 logic [ADDR_WIDTH : 0]     used_words;
+logic [ADDR_WIDTH : 0]     pkt_cnt;
+logic [ADDR_WIDTH : 0]     pkt_word_cnt;
 logic                      rd_en;
 logic                      data_in_ram;
 logic                      data_in_o_reg;
 logic                      svrl_w_in_mem;
 logic                      mem_n_empty;
 logic                      first_word;
+logic                      wr_pkt_done;
+logic                      rd_pkt_done;
+logic                      drop_state;
 
 assign wr_data.tdata = pkt_i.tdata;
 assign wr_data.tstrb = pkt_i.tstrb;
@@ -60,7 +65,43 @@ assign pkt_o.tdest   = rd_data.tdest;
 assign pkt_o.tid     = rd_data.tid;
 
 assign rd_req        = pkt_o.tvalid && pkt_o.tready;
-assign wr_req        = pkt_i.tvalid && pkt_i.tready;
+assign wr_req        = pkt_i.tvalid && !full && !drop_state;
+
+assign rd_pkt_done   = rd_req && pkt_o.tlast;
+assign wr_pkt_done   = wr_req && pkt_i.tlast;
+
+always_ff @( posedge clk_i, posedge rst_i )
+  if( rst_i )
+    drop_state <= '0;
+  else
+    if( full || wr_req && !rd_req && used_words == 2 ** ADDR_WIDTH && !pkt_i.tlast )
+      drop_state <= 1'b1;
+    else
+      if( pkt_i.tvalid && pkt_i.tready && pkt_i.tlast )
+        drop_state <= 1'b0;
+
+always_ff @( posedge clk_i, posedge rst_i )
+  if( rst_i )
+    pkt_cnt <= '0;
+  else
+    if( wr_pkt_done && !rd_pkt_done )
+      pkt_cnt <= pkt_cnt + 1'b1;
+    else
+      if( !wr_pkt_done && rd_pkt_done )
+        pkt_cnt <= pkt_cnt - 1'b1;
+
+assign pkt_i.tready = 1'b1;
+assign pkt_o.tvalid = pkt_cnt > 'd0;
+
+always_ff @( posedge clk_i, posedge rst_i )
+  if( rst_i )
+    pkt_word_cnt <= '0;
+  else
+    if( wr_pkt_done || drop_state )
+      pkt_word_cnt <= '0;
+    else
+      if( wr_req )
+        pkt_word_cnt <= pkt_word_cnt + 1'b1;
 
 always_ff @( posedge clk_i, posedge rst_i )
   if( rst_i )
@@ -76,7 +117,6 @@ assign svrl_w_in_mem = used_words > 'd2;
 assign mem_n_empty   = used_words > 'd1;
 assign first_word    = data_in_ram && !data_in_o_reg;
 assign pkt_i.tready  = !full;
-assign pkt_o.tvalid  = data_in_o_reg;
 
 always_ff @( posedge clk_i, posedge rst_i )
   if( rst_i )
