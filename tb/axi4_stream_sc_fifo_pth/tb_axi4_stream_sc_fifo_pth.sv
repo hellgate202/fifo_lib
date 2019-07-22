@@ -3,19 +3,17 @@
 
 `timescale 1 ps / 1 ps
 
-module tb_axi4_stream_sc_fifo;
+module tb_axi4_stream_sc_fifo_pth;
 
 parameter int BUFFER_DEPTH       = 16;
 parameter int DATA_WIDTH         = 32;
 parameter int USER_WIDTH         = 1;
 parameter int DEST_WIDTH         = 1;
 parameter int ID_WIDTH           = 1;
-parameter int CONTINIOUS_TVALID  = 1;
-parameter int ALLOW_BACKPRESSURE = 0;
 
 parameter int RANDOM_TVALID      = 0;
 parameter int RANDOM_TREADY      = 1;
-parameter int PKTS_AMOUNT        = 10000;
+parameter int PKTS_AMOUNT        = 2;
 parameter int MAX_PKT_SIZE_B     = 8;
 parameter int MIN_PKT_SIZE_B     = 8;
 
@@ -124,9 +122,7 @@ axi4_stream_sc_fifo #(
   .DATA_WIDTH         ( DATA_WIDTH         ),
   .USER_WIDTH         ( USER_WIDTH         ),
   .DEST_WIDTH         ( DEST_WIDTH         ),
-  .ID_WIDTH           ( ID_WIDTH           ),
-  .CONTINIOUS_TVALID  ( CONTINIOUS_TVALID  ),
-  .ALLOW_BACKPRESSURE ( ALLOW_BACKPRESSURE )
+  .ID_WIDTH           ( ID_WIDTH           )
 ) DUT (
   .clk_i              ( clk                ),
   .rst_i              ( rst                ),

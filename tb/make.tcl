@@ -25,20 +25,20 @@ proc dc_fifo {} {
   run -all
 }
 
-proc axi4_stream_sc_fifo {} {
-  compile_src axi4_stream_sc_fifo
+proc axi4_stream_sc_fifo_pth {} {
+  compile_src axi4_stream_sc_fifo_pth
 #vopt +acc tb_axi4_stream_sc_fifo -o tb_axi4_stream_sc_fifo_opt
 #vsim tb_axi4_stream_sc_fifo_opt
-  vsim tb_axi4_stream_sc_fifo
-  draw_waveforms axi4_stream_sc_fifo
+  vsim tb_axi4_stream_sc_fifo_pth
+  draw_waveforms axi4_stream_sc_fifo_pth
   run -all
 }
 
 proc help {} {
   echo "Type following one of following commands to run appropriate testbench:"
-  echo "sc_fifo             - Single clock FIFO."
-  echo "dc_fifo             - Dual clock FIFO."
-  echo "axi4_stream_sc_fifo - AXI4-Stream FIFO"
+  echo "sc_fifo                 - Single clock FIFO."
+  echo "dc_fifo                 - Dual clock FIFO."
+  echo "axi4_stream_sc_fifo_pth - AXI4-Stream passthrough FIFO"
   echo "Type help to repeat this message."
 }
 
