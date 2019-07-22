@@ -18,19 +18,17 @@ add wave -noupdate -radix hexadecimal /tb_axi4_stream_sc_fifo_pth/DUT/rst_i
 add wave -noupdate -radix hexadecimal /tb_axi4_stream_sc_fifo_pth/DUT/wr_data
 add wave -noupdate -radix hexadecimal /tb_axi4_stream_sc_fifo_pth/DUT/rd_data
 add wave -noupdate -radix hexadecimal /tb_axi4_stream_sc_fifo_pth/DUT/wr_addr
+add wave -noupdate -radix hexadecimal /tb_axi4_stream_sc_fifo_pth/DUT/wr_req
+add wave -noupdate -radix hexadecimal /tb_axi4_stream_sc_fifo_pth/DUT/full
 add wave -noupdate -radix hexadecimal /tb_axi4_stream_sc_fifo_pth/DUT/rd_addr
+add wave -noupdate -radix hexadecimal /tb_axi4_stream_sc_fifo_pth/DUT/rd_req
 add wave -noupdate -radix hexadecimal /tb_axi4_stream_sc_fifo_pth/DUT/used_words
 add wave -noupdate -radix hexadecimal /tb_axi4_stream_sc_fifo_pth/DUT/rd_en
-add wave -noupdate -radix hexadecimal /tb_axi4_stream_sc_fifo_pth/DUT/wr_en
-add wave -noupdate -radix hexadecimal /tb_axi4_stream_sc_fifo_pth/DUT/data_in_mem
-add wave -noupdate -radix hexadecimal /tb_axi4_stream_sc_fifo_pth/DUT/data_at_output
-add wave -noupdate -radix hexadecimal /tb_axi4_stream_sc_fifo_pth/DUT/pkt_running
+add wave -noupdate -radix hexadecimal /tb_axi4_stream_sc_fifo_pth/DUT/data_in_ram
+add wave -noupdate -radix hexadecimal /tb_axi4_stream_sc_fifo_pth/DUT/data_in_o_reg
+add wave -noupdate -radix hexadecimal /tb_axi4_stream_sc_fifo_pth/DUT/svrl_w_in_mem
+add wave -noupdate -radix hexadecimal /tb_axi4_stream_sc_fifo_pth/DUT/mem_n_empty
 add wave -noupdate -radix hexadecimal /tb_axi4_stream_sc_fifo_pth/DUT/first_word
-add wave -noupdate -radix hexadecimal /tb_axi4_stream_sc_fifo_pth/DUT/fifo_overflow
-add wave -noupdate -radix hexadecimal /tb_axi4_stream_sc_fifo_pth/DUT/drop_pkt
-add wave -noupdate -radix hexadecimal /tb_axi4_stream_sc_fifo_pth/DUT/pkt_words_cnt
-add wave -noupdate -radix hexadecimal /tb_axi4_stream_sc_fifo_pth/DUT/pkt_start_addr
-add wave -noupdate -radix hexadecimal /tb_axi4_stream_sc_fifo_pth/DUT/pkts_cnt
 add wave -noupdate -divider PKT_O
 add wave -noupdate -radix hexadecimal /tb_axi4_stream_sc_fifo_pth/pkt_o/aclk
 add wave -noupdate -radix hexadecimal /tb_axi4_stream_sc_fifo_pth/pkt_o/aresetn
@@ -60,4 +58,4 @@ configure wave -griddelta 40
 configure wave -timeline 0
 configure wave -timelineunits ns
 update
-WaveRestoreZoom {0 ps} {44625 ps}
+WaveRestoreZoom {0 ps} {133875 ps}
