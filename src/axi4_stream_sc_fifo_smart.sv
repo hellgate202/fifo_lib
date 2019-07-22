@@ -1,5 +1,5 @@
 // For code explanation refer to sc_fifo.sv
-module axi4_stream_sc_fifo_pth #(
+module axi4_stream_sc_fifo_smart #(
   parameter int BUFFER_DEPTH       = 64,
   parameter int DATA_WIDTH         = 32,
   parameter int USER_WIDTH         = 1,
@@ -35,7 +35,7 @@ logic                      wr_req;
 logic                      full;
 logic [ADDR_WIDTH - 1 : 0] rd_addr;
 logic                      rd_req;
-logic [ADDR_WIDTH : 0]     used_words;
+logic [ADDR_WIDTH : 0]     used_words, used_words_comb;
 logic [ADDR_WIDTH : 0]     pkt_cnt;
 logic [ADDR_WIDTH : 0]     pkt_word_cnt;
 logic                      rd_en;
@@ -74,11 +74,11 @@ always_ff @( posedge clk_i, posedge rst_i )
   if( rst_i )
     drop_state <= '0;
   else
-    if( full || wr_req && !rd_req && used_words == 2 ** ADDR_WIDTH && !pkt_i.tlast )
-      drop_state <= 1'b1;
+    if( drop_state && pkt_i.tvalid && pkt_i.tready && pkt_i.tlast )
+      drop_state <= 1'b0;
     else
-      if( pkt_i.tvalid && pkt_i.tready && pkt_i.tlast )
-        drop_state <= 1'b0;
+      if( wr_req && !rd_req && used_words == 2 ** ADDR_WIDTH && !pkt_i.tlast || pkt_i.tvalid && pkt_i.tready && full )
+        drop_state <= 1'b1;
 
 always_ff @( posedge clk_i, posedge rst_i )
   if( rst_i )
@@ -91,7 +91,7 @@ always_ff @( posedge clk_i, posedge rst_i )
         pkt_cnt <= pkt_cnt - 1'b1;
 
 assign pkt_i.tready = 1'b1;
-assign pkt_o.tvalid = pkt_cnt > 'd0;
+assign pkt_o.tvalid = pkt_cnt > 'd0 && data_in_o_reg;
 
 always_ff @( posedge clk_i, posedge rst_i )
   if( rst_i )
@@ -104,26 +104,44 @@ always_ff @( posedge clk_i, posedge rst_i )
         pkt_word_cnt <= pkt_word_cnt + 1'b1;
 
 always_ff @( posedge clk_i, posedge rst_i )
-  if( rst_i )
+  if ( rst_i )
     used_words <= '0;
   else
-    if( wr_req && !rd_req )
-      used_words <= used_words + 1'b1;
+    used_words <= used_words_comb;
+
+always_comb
+  begin
+    used_words_comb = used_words;
+    if( drop_state && full )
+      begin
+        if( rd_req )
+          used_words_comb = used_words - pkt_word_cnt - 1'b1;
+        else
+          used_words_comb = used_words - pkt_word_cnt;
+      end
     else
-      if( !wr_req && rd_req )
-        used_words <= used_words - 1'b1;
+      begin
+        if( wr_req && !rd_req )
+          used_words_comb = used_words + 1'b1;
+        else
+          if( !wr_req && rd_req )
+            used_words_comb = used_words - 1'b1;
+      end
+  end
 
 assign svrl_w_in_mem = used_words > 'd2;
 assign mem_n_empty   = used_words > 'd1;
 assign first_word    = data_in_ram && !data_in_o_reg;
-assign pkt_i.tready  = !full;
 
 always_ff @( posedge clk_i, posedge rst_i )
   if( rst_i )
     data_in_o_reg <= '0;
   else
-    if( rd_req || first_word )
-      data_in_o_reg <= data_in_ram;
+    if( drop_state && used_words_comb == '0 )
+      data_in_o_reg <= 1'b0;
+    else
+      if( rd_req || first_word )
+        data_in_o_reg <= data_in_ram;
 
 assign rd_en = first_word || rd_req;
 
@@ -131,24 +149,30 @@ always_ff @( posedge clk_i, posedge rst_i )
   if( rst_i )
     data_in_ram <= '0;
   else
-    if( rd_req )
-      data_in_ram <= wr_req || svrl_w_in_mem;
+    if( drop_state && ( used_words_comb < 'd2 ) )
+      data_in_ram <= 1'b0;
     else
-      if( first_word || !data_in_ram )
-        data_in_ram <= wr_req;
+      if( rd_req )
+        data_in_ram <= wr_req || svrl_w_in_mem;
+      else
+        if( first_word || !data_in_ram )
+          data_in_ram <= wr_req;
 
 always_ff @( posedge clk_i, posedge rst_i )
   if( rst_i )
     wr_addr <= '0;
   else
-    if( wr_req && ( data_in_ram || !rd_req && data_in_o_reg ) )
-      wr_addr <= wr_addr + 1'b1;
+    if( drop_state && full )
+      wr_addr <= wr_addr - ( pkt_word_cnt - ( pkt_cnt == '0 ) );
+    else 
+      if( wr_req && ( data_in_ram || !rd_req && data_in_o_reg ) )
+        wr_addr <= wr_addr + 1'b1;
 
 always_ff @( posedge clk_i, posedge rst_i )
   if( rst_i )
     rd_addr <= '0;
   else
-    if( rd_req && data_in_ram )
+    if( rd_req && data_in_ram && !( drop_state && used_words_comb == '0 ) )
       rd_addr <= rd_addr + 1'b1;
 
 always_ff @( posedge clk_i, posedge rst_i )
@@ -158,7 +182,7 @@ always_ff @( posedge clk_i, posedge rst_i )
     if( !rd_req && wr_req )
       full <= used_words == ( 2**ADDR_WIDTH );
     else
-      if( rd_req && !wr_req )
+      if( rd_req && !wr_req || drop_state && pkt_word_cnt != '0 )
         full <= 1'b0;
 
 dual_port_ram #(

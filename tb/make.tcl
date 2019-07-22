@@ -34,11 +34,21 @@ proc axi4_stream_sc_fifo_pth {} {
   run -all
 }
 
+proc axi4_stream_sc_fifo_smart {} {
+  compile_src axi4_stream_sc_fifo_smart
+#vopt +acc tb_axi4_stream_sc_fifo -o tb_axi4_stream_sc_fifo_opt
+#vsim tb_axi4_stream_sc_fifo_opt
+  vsim tb_axi4_stream_sc_fifo_smart
+  draw_waveforms axi4_stream_sc_fifo_smart
+  run -all
+}
+
 proc help {} {
   echo "Type following one of following commands to run appropriate testbench:"
-  echo "sc_fifo                 - Single clock FIFO."
-  echo "dc_fifo                 - Dual clock FIFO."
-  echo "axi4_stream_sc_fifo_pth - AXI4-Stream passthrough FIFO"
+  echo "sc_fifo                   - Single clock FIFO."
+  echo "dc_fifo                   - Dual clock FIFO."
+  echo "axi4_stream_sc_fifo_pth   - AXI4-Stream passthrough FIFO"
+  echo "axi4_stream_sc_fifo_smart - AXI4-Stream smart FIFO"
   echo "Type help to repeat this message."
 }
 
