@@ -22,12 +22,19 @@ logic                      wr_req;
 logic [ADDR_WIDTH : 0]     wr_used_words;
 logic                      wr_full;
 logic                      wr_empty;
+// Write pointer on write clock
 logic [ADDR_WIDTH : 0]     wr_ptr_wr_clk;
+// Combinational gray-encoded write pointer on write clock
 logic [ADDR_WIDTH : 0]     wr_ptr_gray_wr_clk_comb;
+// Gray-encoded write pointer on write clock
 logic [ADDR_WIDTH : 0]     wr_ptr_gray_wr_clk;
+// Gray-encoded write pointer on read clock
 logic [ADDR_WIDTH : 0]     wr_ptr_gray_rd_clk;
+// Gray-encoded write pointer on read clock 1 tick delayed
 logic [ADDR_WIDTH : 0]     wr_ptr_gray_rd_clk_mtstb;
+// Combinational write pointer on read clock
 logic [ADDR_WIDTH : 0]     wr_ptr_rd_clk_comb;
+// Wrtie pointer on read clock
 logic [ADDR_WIDTH : 0]     wr_ptr_rd_clk;
 logic [ADDR_WIDTH - 1 : 0] wr_addr;
 
@@ -35,23 +42,34 @@ logic                      rd_req;
 logic [ADDR_WIDTH : 0]     rd_used_words;
 logic                      rd_full;
 logic                      rd_empty;
+// Read pointer on read clock
 logic [ADDR_WIDTH : 0]     rd_ptr_rd_clk;
+// Combinational gray-encoded read pointer on read clock
 logic [ADDR_WIDTH : 0]     rd_ptr_gray_rd_clk_comb;
+// Gray-encoded read pointer on read clock
 logic [ADDR_WIDTH : 0]     rd_ptr_gray_rd_clk;
+// Gray-encoded read pointer on write clock
 logic [ADDR_WIDTH : 0]     rd_ptr_gray_wr_clk;
+// Gray-encoded read pointer on write clock 1 tick delayed
 logic [ADDR_WIDTH : 0]     rd_ptr_gray_wr_clk_mtstb;
+// Combinational read pointer on write clock
 logic [ADDR_WIDTH : 0]     rd_ptr_wr_clk_comb;
+// Read pointer on write clock
 logic [ADDR_WIDTH : 0]     rd_ptr_wr_clk;
 logic [ADDR_WIDTH - 1 : 0] rd_addr;
+// Moving data from RAM to output reg
 logic                      rd_en;
+// There is unread data in RAM
+logic                      data_in_ram;
+// There is unread data in output reg
+logic                      data_in_o_reg;
 
-logic                      data_in_mem;
-logic                      data_at_output;
-
+// Synchronizing reset with read clock
 logic                      rst_rd_clk_d1;
 logic                      rst_rd_clk_d2;
 logic                      rst_rd_clk;
 
+// Synchronizing reset with write clock
 logic                      rst_wr_clk_d1;
 logic                      rst_wr_clk_d2;
 logic                      rst_wr_clk;
@@ -157,7 +175,6 @@ always_ff @( posedge rd_clk_i, posedge rst_rd_clk )
     if( rd_en )
       rd_ptr_rd_clk <= rd_ptr_rd_clk + 1'b1;
 
-// Conversion to the Gray code
 bin2gray #(
   .DATA_WIDTH ( ADDR_WIDTH + 1          )
 ) rd_ptr_to_gray_enc (
@@ -183,7 +200,6 @@ always_ff @( posedge wr_clk_i, posedge rst_wr_clk )
   else
     rd_ptr_gray_wr_clk_mtstb <= rd_ptr_gray_wr_clk;
 
-// Gray code decoding
 gray2bin #(
   .DATA_WIDTH ( ADDR_WIDTH + 1           )
 ) rd_ptr_from_gray_dec (
@@ -197,31 +213,40 @@ always_ff @( posedge wr_clk_i, posedge rst_wr_clk )
   else
     rd_ptr_wr_clk <= rd_ptr_wr_clk_comb;
 
-// MSB serves for indication if we are catching read pointer from behind
+
+// Write and read pointers are one bit wider than memory address.
+// When they are equal that means, that we read as much data as we have
+// written.
+// We need to detect when memory address surpass its highest value.
+// For example on 3-bit wide address we have 3'h2 read address and 3'h7 write
+// address after two write operations it will become 3'h2. And by common sense
+// we declare that it is full, but by the rule mentioned above it is empty.
+// That's why we need an extra MSB to indicate that we are catching read
+// pointer from behind if MSBs are not equal.
 assign wr_full       = wr_ptr_wr_clk[ADDR_WIDTH]         != rd_ptr_wr_clk[ADDR_WIDTH] &&
                        wr_ptr_wr_clk[ADDR_WIDTH - 1 : 0] == rd_ptr_wr_clk[ADDR_WIDTH - 1 : 0];
 assign rd_full       = rd_ptr_rd_clk[ADDR_WIDTH]         != wr_ptr_rd_clk[ADDR_WIDTH] &&
                        rd_ptr_rd_clk[ADDR_WIDTH - 1 : 0] == wr_ptr_rd_clk[ADDR_WIDTH - 1 : 0];
+
 assign wr_used_words = wr_ptr_wr_clk - rd_ptr_wr_clk;
 assign rd_used_words = wr_ptr_rd_clk - rd_ptr_rd_clk;
 // If MSB and address are the same, then we are empty
 assign wr_empty      = wr_ptr_wr_clk == rd_ptr_wr_clk;
 // Just like in sc_fifo
-assign rd_empty      = !data_at_output;
+assign rd_empty      = !data_in_o_reg;
 
-// The fastest and the safest way to know that we have data to read is
-// to find out that our pointers differs
-assign data_in_mem   = wr_ptr_rd_clk != rd_ptr_rd_clk;
+// This method ad some latency in status signals response, but there is no
+// other choice, because of clock crossing
+assign data_in_ram   = wr_ptr_rd_clk != rd_ptr_rd_clk;
 
-// Just like in sc_fifo
 always_ff @( posedge rd_clk_i, posedge rst_i )
   if( rst_i )
-    data_at_output <= '0;
+    data_in_o_reg <= '0;
   else
-    if( rd_req || !data_at_output )
-      data_at_output <= data_in_mem;
+    if( rd_req || !data_in_o_reg )
+      data_in_o_reg <= data_in_ram;
 
-assign rd_en = data_in_mem && ( !data_at_output || rd_req );
+assign rd_en = data_in_ram && ( !data_in_o_reg || rd_req );
 
 dual_port_ram #(
   .DATA_WIDTH ( DATA_WIDTH ),

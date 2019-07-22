@@ -25,7 +25,7 @@ logic [ADDR_WIDTH : 0]     used_words;
 logic                      rd_en;
 // There is unread data in RAM
 logic                      data_in_ram;
-// There is unread data at output reg
+// There is unread data in output reg
 logic                      data_in_o_reg;
 // More than one word in RAM
 logic                      svrl_w_in_mem;

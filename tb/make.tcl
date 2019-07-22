@@ -19,8 +19,8 @@ proc sc_fifo {} {
 
 proc dc_fifo {} {
   compile_src dc_fifo
-  vopt +acc tb_dc_fifo -o tb_dc_fifo_opt
-  vsim tb_dc_fifo_opt
+  #vopt +acc tb_dc_fifo -o tb_dc_fifo_opt
+  vsim tb_dc_fifo
   draw_waveforms dc_fifo
   run -all
 }
