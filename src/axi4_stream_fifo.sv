@@ -7,16 +7,21 @@ module axi4_stream_fifo #(
   parameter int ID_WIDTH     = 1,
   // FIFO parameters
   parameter int WORDS_AMOUNT = 8,
-  parameter int SMART        = 1
+  parameter int SMART        = 1,
+  parameter int ADDR_WIDTH   = $clog2( WORDS_AMOUNT )
 )(
-  input                 clk_i,
-  input                 rst_i,
-  axi4_stream_if.slave  pkt_i,
-  axi4_stream_if.master pkt_o
+  input                   clk_i,
+  input                   rst_i,
+  output                  full_o,
+  output                  empty_o,
+  output                  drop_o,
+  output [ADDR_WIDTH : 0] used_words_o,
+  output [ADDR_WIDTH : 0] pkts_amount_o,
+  axi4_stream_if.slave    pkt_i,
+  axi4_stream_if.master   pkt_o
 );
 
 localparam int DATA_WIDTH_B = DATA_WIDTH / 8;
-localparam int ADDR_WIDTH   = $clog2( WORDS_AMOUNT );
 localparam int FIFO_WIDTH   = DATA_WIDTH + USER_WIDTH + DEST_WIDTH + 
                               ID_WIDTH + 2 * DATA_WIDTH_B + 1;
 
@@ -96,6 +101,8 @@ always_ff @( posedge clk_i, posedge rst_i )
       if( full_comb && !pkt_i.tlast || full && pkt_i.tvalid )
         drop_state <= 1'b1;
 
+assign drop_o = drop_state && pkt_i.tvalid && pkt_i.tlast;
+
 always_ff @( posedge clk_i, posedge rst_i )
   if( rst_i )
     pkt_cnt <= '0;
@@ -106,11 +113,13 @@ always_ff @( posedge clk_i, posedge rst_i )
       if( !wr_pkt_done && rd_pkt_done )
         pkt_cnt <= pkt_cnt - 1'b1;
 
+assign pkts_amount_o = pkt_cnt;
+
 // We are always ready if we are dropping packets on overflow
-assign pkt_i.tready = 1'b1;
+assign pkt_i.tready  = 1'b1;
 // When we have at least one packet, we set valid high. Valid is continious
 // for the whole packet
-assign pkt_o.tvalid = pkt_cnt > 'd0 && data_in_o_reg;
+assign pkt_o.tvalid  = pkt_cnt > 'd0 && data_in_o_reg;
 
 // Indicates how many words of the current packet was written.
 // It is needed to revert write address of RAM in case of drop state
@@ -154,6 +163,8 @@ always_comb
       end
   end
 
+assign used_words_o  = used_words;
+
 assign svrl_w_in_mem = used_words > 'd2;
 assign mem_n_empty   = used_words > 'd1;
 assign first_word    = data_in_ram && !data_in_o_reg;
@@ -170,7 +181,8 @@ always_ff @( posedge clk_i, posedge rst_i )
       if( rd_req || first_word )
         data_in_o_reg <= data_in_ram;
 
-assign rd_en = first_word || rd_req;
+assign empty_o = !data_in_o_reg;
+assign rd_en   = first_word || rd_req;
 
 always_ff @( posedge clk_i, posedge rst_i )
   if( rst_i )
@@ -230,6 +242,8 @@ always_comb
       if( rd_req && !wr_req || drop_state && pkt_word_cnt != '0 )
         full_comb = 1'b0;
   end
+
+assign full_o = full;
 
 dual_port_ram #(
   .DATA_WIDTH ( FIFO_WIDTH ),
