@@ -14,7 +14,7 @@ parameter int ID_WIDTH           = 1;
 parameter int RANDOM_TVALID      = 1;
 parameter int RANDOM_TREADY      = 1;
 parameter int PKTS_AMOUNT        = 1000;
-parameter int MAX_PKT_SIZE_B     = 132;
+parameter int MAX_PKT_SIZE_B     = 1;
 parameter int MIN_PKT_SIZE_B     = 150;
 
 parameter int CLK_T = 5000;
@@ -118,7 +118,7 @@ AXI4StreamSlave #(
   .RANDOM_TREADY ( RANDOM_TREADY )
 ) pkt_receiver;
 
-axi4_stream_sc_fifo_smart #(
+axi4_stream_fifo #(
   .DATA_WIDTH   ( DATA_WIDTH         ),
   .USER_WIDTH   ( USER_WIDTH         ),
   .DEST_WIDTH   ( DEST_WIDTH         ),
