@@ -3,7 +3,7 @@
 
 `timescale 1 ps / 1 ps
 
-module tb_axi4_stream_sc_fifo_smart;
+module tb_axi4_stream_fifo;
 
 parameter int WORDS_AMOUNT       = 32;
 parameter int DATA_WIDTH         = 32;
