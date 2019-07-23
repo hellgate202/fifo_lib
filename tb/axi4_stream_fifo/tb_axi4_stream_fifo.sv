@@ -14,8 +14,8 @@ parameter int ID_WIDTH       = 1;
 parameter int RANDOM_TVALID  = 1;
 parameter int RANDOM_TREADY  = 1;
 parameter int PKTS_AMOUNT    = 1000;
-parameter int MAX_PKT_SIZE_B = 1;
-parameter int MIN_PKT_SIZE_B = 150;
+parameter int MAX_PKT_SIZE_B = 132;
+parameter int MIN_PKT_SIZE_B = 136;
 parameter int SMART          = 1;
 
 parameter int CLK_T          = 5000;

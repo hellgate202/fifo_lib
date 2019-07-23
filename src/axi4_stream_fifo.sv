@@ -53,7 +53,6 @@ logic                      rd_en;
 logic                      data_in_ram;
 logic                      data_in_o_reg;
 logic                      svrl_w_in_mem;
-logic                      mem_n_empty;
 logic                      first_word;
 logic                      wr_pkt_done;
 logic                      rd_pkt_done;
@@ -180,7 +179,6 @@ always_comb
 assign used_words_o  = used_words;
 
 assign svrl_w_in_mem = used_words > 'd2;
-assign mem_n_empty   = used_words > 'd1;
 assign first_word    = data_in_ram && !data_in_o_reg;
 
 always_ff @( posedge clk_i, posedge rst_i )
@@ -223,7 +221,7 @@ always_ff @( posedge clk_i, posedge rst_i )
     // cleared as well as output register. So write address will be decrased
     // one less the usual.
     if( drop_state && full )
-      wr_addr <= wr_addr - ( pkt_word_cnt - ( pkt_cnt == '0 ) );
+      wr_addr <= wr_addr - ( pkt_word_cnt[ADDR_WIDTH - 1 : 0] - ( pkt_cnt == '0 ) );
     else 
       if( wr_req && ( data_in_ram || !rd_req && data_in_o_reg ) )
         wr_addr <= wr_addr + 1'b1;

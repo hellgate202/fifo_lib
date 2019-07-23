@@ -29,8 +29,6 @@ logic                      data_in_ram;
 logic                      data_in_o_reg;
 // More than one word in RAM
 logic                      svrl_w_in_mem;
-// At least one word in RAM
-logic                      mem_n_empty;
 // First word in FIFO datapath after empty
 logic                      first_word;
 
@@ -104,7 +102,6 @@ always_ff @( posedge clk_i, posedge rst_i )
 //    used_words    ___0__X__1__X__2__X__3__X__2__X__1__
 
 assign svrl_w_in_mem = used_words > 'd2;
-assign mem_n_empty   = used_words > 'd1;
 assign first_word    = data_in_ram && !data_in_o_reg;
 
 // FIFO data output is provided by the output register im RAM 
