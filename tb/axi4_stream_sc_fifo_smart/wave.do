@@ -6,8 +6,8 @@ add wave -noupdate -radix hexadecimal /tb_axi4_stream_sc_fifo_smart/DUT/pkt_i/ar
 add wave -noupdate -radix hexadecimal /tb_axi4_stream_sc_fifo_smart/DUT/pkt_i/tvalid
 add wave -noupdate -radix hexadecimal /tb_axi4_stream_sc_fifo_smart/DUT/pkt_i/tready
 add wave -noupdate -radix hexadecimal /tb_axi4_stream_sc_fifo_smart/DUT/pkt_i/tdata
-add wave -noupdate -radix hexadecimal /tb_axi4_stream_sc_fifo_smart/DUT/pkt_i/tstrb
-add wave -noupdate -radix hexadecimal /tb_axi4_stream_sc_fifo_smart/DUT/pkt_i/tkeep
+add wave -noupdate -radix binary /tb_axi4_stream_sc_fifo_smart/DUT/pkt_i/tstrb
+add wave -noupdate -radix binary /tb_axi4_stream_sc_fifo_smart/DUT/pkt_i/tkeep
 add wave -noupdate -radix hexadecimal /tb_axi4_stream_sc_fifo_smart/DUT/pkt_i/tlast
 add wave -noupdate -radix hexadecimal /tb_axi4_stream_sc_fifo_smart/DUT/pkt_i/tid
 add wave -noupdate -radix hexadecimal /tb_axi4_stream_sc_fifo_smart/DUT/pkt_i/tdest
@@ -41,14 +41,14 @@ add wave -noupdate -radix hexadecimal /tb_axi4_stream_sc_fifo_smart/pkt_o/areset
 add wave -noupdate -radix hexadecimal /tb_axi4_stream_sc_fifo_smart/pkt_o/tvalid
 add wave -noupdate -radix hexadecimal /tb_axi4_stream_sc_fifo_smart/pkt_o/tready
 add wave -noupdate -radix hexadecimal /tb_axi4_stream_sc_fifo_smart/pkt_o/tdata
-add wave -noupdate -radix hexadecimal /tb_axi4_stream_sc_fifo_smart/pkt_o/tstrb
-add wave -noupdate -radix hexadecimal /tb_axi4_stream_sc_fifo_smart/pkt_o/tkeep
+add wave -noupdate -radix binary /tb_axi4_stream_sc_fifo_smart/pkt_o/tstrb
+add wave -noupdate -radix binary /tb_axi4_stream_sc_fifo_smart/pkt_o/tkeep
 add wave -noupdate -radix hexadecimal /tb_axi4_stream_sc_fifo_smart/pkt_o/tlast
 add wave -noupdate -radix hexadecimal /tb_axi4_stream_sc_fifo_smart/pkt_o/tid
 add wave -noupdate -radix hexadecimal /tb_axi4_stream_sc_fifo_smart/pkt_o/tdest
 add wave -noupdate -radix hexadecimal /tb_axi4_stream_sc_fifo_smart/pkt_o/tuser
 TreeUpdate [SetDefaultTree]
-WaveRestoreCursors {{Cursor 1} {22816 ps} 0}
+WaveRestoreCursors {{Cursor 1} {7500 ps} 0}
 quietly wave cursor active 1
 configure wave -namecolwidth 351
 configure wave -valuecolwidth 100
@@ -64,4 +64,4 @@ configure wave -griddelta 40
 configure wave -timeline 0
 configure wave -timelineunits ns
 update
-WaveRestoreZoom {0 ps} {181125 ps}
+WaveRestoreZoom {0 ps} {15763125 ps}

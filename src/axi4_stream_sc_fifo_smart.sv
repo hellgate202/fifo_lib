@@ -1,10 +1,10 @@
 // For code explanation refer to sc_fifo.sv
 module axi4_stream_sc_fifo_smart #(
-  parameter int BUFFER_DEPTH       = 64,
-  parameter int DATA_WIDTH         = 32,
-  parameter int USER_WIDTH         = 1,
-  parameter int DEST_WIDTH         = 1,
-  parameter int ID_WIDTH           = 1
+  parameter int DATA_WIDTH   = 32,
+  parameter int USER_WIDTH   = 1,
+  parameter int DEST_WIDTH   = 1,
+  parameter int ID_WIDTH     = 1,
+  parameter int WORDS_AMOUNT = 8
 )(
   input                 clk_i,
   input                 rst_i,
@@ -13,7 +13,7 @@ module axi4_stream_sc_fifo_smart #(
 );
 
 localparam int DATA_WIDTH_B = DATA_WIDTH / 8;
-localparam int ADDR_WIDTH   = $clog2( BUFFER_DEPTH / DATA_WIDTH_B );
+localparam int ADDR_WIDTH   = $clog2( WORDS_AMOUNT );
 localparam int FIFO_WIDTH   = DATA_WIDTH + USER_WIDTH + DEST_WIDTH + 
                               ID_WIDTH + 2 * DATA_WIDTH_B + 1;
 

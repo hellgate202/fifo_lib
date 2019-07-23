@@ -5,7 +5,7 @@
 
 module tb_axi4_stream_sc_fifo_smart;
 
-parameter int BUFFER_DEPTH       = 24;
+parameter int WORDS_AMOUNT       = 32;
 parameter int DATA_WIDTH         = 32;
 parameter int USER_WIDTH         = 1;
 parameter int DEST_WIDTH         = 1;
@@ -14,8 +14,8 @@ parameter int ID_WIDTH           = 1;
 parameter int RANDOM_TVALID      = 1;
 parameter int RANDOM_TREADY      = 1;
 parameter int PKTS_AMOUNT        = 1000;
-parameter int MAX_PKT_SIZE_B     = 4;
-parameter int MIN_PKT_SIZE_B     = 1;
+parameter int MAX_PKT_SIZE_B     = 132;
+parameter int MIN_PKT_SIZE_B     = 150;
 
 parameter int CLK_T = 5000;
 
@@ -119,16 +119,16 @@ AXI4StreamSlave #(
 ) pkt_receiver;
 
 axi4_stream_sc_fifo_smart #(
-  .BUFFER_DEPTH       ( BUFFER_DEPTH       ),
-  .DATA_WIDTH         ( DATA_WIDTH         ),
-  .USER_WIDTH         ( USER_WIDTH         ),
-  .DEST_WIDTH         ( DEST_WIDTH         ),
-  .ID_WIDTH           ( ID_WIDTH           )
+  .DATA_WIDTH   ( DATA_WIDTH         ),
+  .USER_WIDTH   ( USER_WIDTH         ),
+  .DEST_WIDTH   ( DEST_WIDTH         ),
+  .ID_WIDTH     ( ID_WIDTH           ),
+  .WORDS_AMOUNT ( WORDS_AMOUNT       )
 ) DUT (
-  .clk_i              ( clk                ),
-  .rst_i              ( rst                ),
-  .pkt_i              ( pkt_i              ),
-  .pkt_o              ( pkt_o              )
+  .clk_i        ( clk                ),
+  .rst_i        ( rst                ),
+  .pkt_i        ( pkt_i              ),
+  .pkt_o        ( pkt_o              )
 );
 
 initial
@@ -151,8 +151,8 @@ initial
     for( int i = 0; i < PKTS_AMOUNT; i++ )
       begin
         tx_pkt = tx_pkt_pool[i];
-        pkt_sender.send_pkt( tx_pkt );
-        @( pkt_sender.pkt_end );
+        pkt_sender.tx_data( tx_pkt );
+        wait( pkt_sender.pkt_end.triggered );
       end
     @( posedge clk );
     while( pkt_o.tvalid )
