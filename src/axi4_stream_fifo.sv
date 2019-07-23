@@ -79,29 +79,49 @@ assign pkt_o.tid     = rd_data.tid;
 assign rd_req        = pkt_o.tvalid && pkt_o.tready;
 assign wr_req        = pkt_i.tvalid && !full && !drop_state;
 
+generate
+  if( SMART )
+    begin : drop_logic
+      // When current packet is about to make FIFO full and it is not currently the
+      // last word of the packet then the rest of the packet won't be able to be
+      // written. So we discard the whole packet and enter drop state. The other
+      // case is when we are already full and new packet apprears. Then we are also
+      // entering the drop state and waiting till the end of packet, because we
+      // don't want to write packet without its first words.
+      // When the last word of the packet appears, we exit drop state.
+      always_ff @( posedge clk_i, posedge rst_i )
+        if( rst_i )
+          drop_state <= '0;
+        else
+          if( drop_state && pkt_i.tvalid && pkt_i.tlast )
+            drop_state <= 1'b0;
+          else
+            if( full_comb && !pkt_i.tlast || full && pkt_i.tvalid )
+              drop_state <= 1'b1;
+      
+      assign drop_o       = drop_state && pkt_i.tvalid && pkt_i.tlast;
+      // We are always ready if we are dropping packets on overflow
+      assign pkt_i.tready = 1'b1;
+      // When we have at least one packet, we set valid high. Valid is continious
+      // for the whole packet
+      assign pkt_o.tvalid = pkt_cnt > 'd0 && data_in_o_reg;
+    end
+  else
+    begin : backpressure_logic
+      // We do not drop packets in passthrough mode
+      assign drop_state   = 1'b0;
+      assign drop_o       = 1'b0;
+      // We are backpressuring if we are full
+      assign pkt_i.tready = !full;
+      // Valid whenether we have data at output
+      assign pkt_o.tvalid = data_in_o_reg;
+    end
+endgenerate
+
 // Packet has been successfuly read from FIFO
 assign rd_pkt_done   = rd_req && pkt_o.tlast;
 // Packet has been succsessfuly written to FIFO
 assign wr_pkt_done   = wr_req && pkt_i.tlast;
-
-// When current packet is about to make FIFO full and it is not currently the
-// last word of the packet then the rest of the packet won't be able to be
-// written. So we discard the whole packet and enter drop state. The other
-// case is when we are already full and new packet apprears. Then we are also
-// entering the drop state and waiting till the end of packet, because we
-// don't want to write packet without its first words.
-// When the last word of the packet appears, we exit drop state.
-always_ff @( posedge clk_i, posedge rst_i )
-  if( rst_i )
-    drop_state <= '0;
-  else
-    if( drop_state && pkt_i.tvalid && pkt_i.tlast )
-      drop_state <= 1'b0;
-    else
-      if( full_comb && !pkt_i.tlast || full && pkt_i.tvalid )
-        drop_state <= 1'b1;
-
-assign drop_o = drop_state && pkt_i.tvalid && pkt_i.tlast;
 
 always_ff @( posedge clk_i, posedge rst_i )
   if( rst_i )
@@ -114,12 +134,6 @@ always_ff @( posedge clk_i, posedge rst_i )
         pkt_cnt <= pkt_cnt - 1'b1;
 
 assign pkts_amount_o = pkt_cnt;
-
-// We are always ready if we are dropping packets on overflow
-assign pkt_i.tready  = 1'b1;
-// When we have at least one packet, we set valid high. Valid is continious
-// for the whole packet
-assign pkt_o.tvalid  = pkt_cnt > 'd0 && data_in_o_reg;
 
 // Indicates how many words of the current packet was written.
 // It is needed to revert write address of RAM in case of drop state

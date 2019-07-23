@@ -5,24 +5,32 @@
 
 module tb_axi4_stream_fifo;
 
-parameter int WORDS_AMOUNT       = 32;
-parameter int DATA_WIDTH         = 32;
-parameter int USER_WIDTH         = 1;
-parameter int DEST_WIDTH         = 1;
-parameter int ID_WIDTH           = 1;
+parameter int WORDS_AMOUNT   = 32;
+parameter int DATA_WIDTH     = 32;
+parameter int USER_WIDTH     = 1;
+parameter int DEST_WIDTH     = 1;
+parameter int ID_WIDTH       = 1;
 
-parameter int RANDOM_TVALID      = 1;
-parameter int RANDOM_TREADY      = 1;
-parameter int PKTS_AMOUNT        = 1000;
-parameter int MAX_PKT_SIZE_B     = 1;
-parameter int MIN_PKT_SIZE_B     = 150;
+parameter int RANDOM_TVALID  = 1;
+parameter int RANDOM_TREADY  = 1;
+parameter int PKTS_AMOUNT    = 1000;
+parameter int MAX_PKT_SIZE_B = 1;
+parameter int MIN_PKT_SIZE_B = 150;
+parameter int SMART          = 1;
 
-parameter int CLK_T = 5000;
+parameter int CLK_T          = 5000;
+
+parameter int ADDR_WIDTH     = $clog2( WORDS_AMOUNT );
 
 typedef bit [7 : 0] pkt_q [$];
 
-bit clk;
-bit rst;
+bit                  clk;
+bit                  rst;
+bit                  full;
+bit                  empty;
+bit                  drop;
+bit [ADDR_WIDTH : 0] used_words;
+bit [ADDR_WIDTH : 0] pkts_amount;
 
 pkt_q tx_pkt;
 pkt_q rx_pkt;
@@ -119,16 +127,22 @@ AXI4StreamSlave #(
 ) pkt_receiver;
 
 axi4_stream_fifo #(
-  .DATA_WIDTH   ( DATA_WIDTH         ),
-  .USER_WIDTH   ( USER_WIDTH         ),
-  .DEST_WIDTH   ( DEST_WIDTH         ),
-  .ID_WIDTH     ( ID_WIDTH           ),
-  .WORDS_AMOUNT ( WORDS_AMOUNT       )
+  .DATA_WIDTH    ( DATA_WIDTH         ),
+  .USER_WIDTH    ( USER_WIDTH         ),
+  .DEST_WIDTH    ( DEST_WIDTH         ),
+  .ID_WIDTH      ( ID_WIDTH           ),
+  .WORDS_AMOUNT  ( WORDS_AMOUNT       ),
+  .SMART         ( SMART              )
 ) DUT (
-  .clk_i        ( clk                ),
-  .rst_i        ( rst                ),
-  .pkt_i        ( pkt_i              ),
-  .pkt_o        ( pkt_o              )
+  .clk_i         ( clk                ),
+  .rst_i         ( rst                ),
+  .full_o        ( full               ),
+  .empty_o       ( empty              ),
+  .drop_o        ( drop               ),
+  .used_words_o  ( used_words         ),
+  .pkts_amount_o ( pkts_amount        ),
+  .pkt_i         ( pkt_i              ),
+  .pkt_o         ( pkt_o              )
 );
 
 initial
