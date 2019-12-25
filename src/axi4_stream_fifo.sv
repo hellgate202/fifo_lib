@@ -1,10 +1,10 @@
 // For more code explanation refer to sc_fifo.sv
 module axi4_stream_fifo #(
   // AXI4 interface parameters
-  parameter int DATA_WIDTH   = 32,
-  parameter int USER_WIDTH   = 1,
-  parameter int DEST_WIDTH   = 1,
-  parameter int ID_WIDTH     = 1,
+  parameter int TDATA_WIDTH  = 32,
+  parameter int TUSER_WIDTH  = 1,
+  parameter int TDEST_WIDTH  = 1,
+  parameter int TID_WIDTH    = 1,
   // FIFO parameters
   parameter int WORDS_AMOUNT = 8,
   parameter int SMART        = 1,
@@ -21,18 +21,18 @@ module axi4_stream_fifo #(
   axi4_stream_if.master   pkt_o
 );
 
-localparam int DATA_WIDTH_B = DATA_WIDTH / 8;
-localparam int FIFO_WIDTH   = DATA_WIDTH + USER_WIDTH + DEST_WIDTH + 
-                              ID_WIDTH + 2 * DATA_WIDTH_B + 1;
+localparam int TDATA_WIDTH_B = TDATA_WIDTH / 8;
+localparam int FIFO_WIDTH    = TDATA_WIDTH + TUSER_WIDTH + TDEST_WIDTH + 
+                               TID_WIDTH + 2 * TDATA_WIDTH_B + 1;
 
 typedef struct packed {
-  logic [DATA_WIDTH - 1 : 0]   tdata;
-  logic [DATA_WIDTH_B - 1 : 0] tstrb;
-  logic [DATA_WIDTH_B - 1 : 0] tkeep;
-  logic                        tlast;
-  logic [USER_WIDTH - 1 : 0]   tuser;
-  logic [DEST_WIDTH - 1 : 0]   tdest;
-  logic [ID_WIDTH - 1 : 0]     tid;
+  logic [TDATA_WIDTH - 1 : 0]   tdata;
+  logic [TDATA_WIDTH_B - 1 : 0] tstrb;
+  logic [TDATA_WIDTH_B - 1 : 0] tkeep;
+  logic                         tlast;
+  logic [TUSER_WIDTH - 1 : 0]   tuser;
+  logic [TDEST_WIDTH - 1 : 0]   tdest;
+  logic [TID_WIDTH - 1 : 0]     tid;
 } axi4_stream_word_t;
 
 // Data words for RAM

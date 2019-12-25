@@ -36,7 +36,6 @@ add wave -noupdate -radix hexadecimal /tb_axi4_stream_fifo/DUT/rd_en
 add wave -noupdate -radix hexadecimal /tb_axi4_stream_fifo/DUT/data_in_ram
 add wave -noupdate -radix hexadecimal /tb_axi4_stream_fifo/DUT/data_in_o_reg
 add wave -noupdate -radix hexadecimal /tb_axi4_stream_fifo/DUT/svrl_w_in_mem
-add wave -noupdate -radix hexadecimal /tb_axi4_stream_fifo/DUT/mem_n_empty
 add wave -noupdate -radix hexadecimal /tb_axi4_stream_fifo/DUT/first_word
 add wave -noupdate -radix hexadecimal /tb_axi4_stream_fifo/DUT/wr_pkt_done
 add wave -noupdate -radix hexadecimal /tb_axi4_stream_fifo/DUT/rd_pkt_done
@@ -54,7 +53,7 @@ add wave -noupdate -radix hexadecimal /tb_axi4_stream_fifo/pkt_o/tid
 add wave -noupdate -radix hexadecimal /tb_axi4_stream_fifo/pkt_o/tdest
 add wave -noupdate -radix hexadecimal /tb_axi4_stream_fifo/pkt_o/tuser
 TreeUpdate [SetDefaultTree]
-WaveRestoreCursors {{Cursor 1} {7500 ps} 0}
+WaveRestoreCursors {{Cursor 1} {247147500 ps} 0}
 quietly wave cursor active 1
 configure wave -namecolwidth 351
 configure wave -valuecolwidth 100
@@ -70,4 +69,4 @@ configure wave -griddelta 40
 configure wave -timeline 0
 configure wave -timelineunits ns
 update
-WaveRestoreZoom {0 ps} {199786125 ps}
+WaveRestoreZoom {0 ps} {354676875 ps}

@@ -5,11 +5,11 @@
 
 module tb_axi4_stream_fifo;
 
-parameter int WORDS_AMOUNT   = 32;
-parameter int DATA_WIDTH     = 32;
-parameter int USER_WIDTH     = 1;
-parameter int DEST_WIDTH     = 1;
-parameter int ID_WIDTH       = 1;
+parameter int WORDS_AMOUNT    = 32;
+parameter int TDATA_WIDTH     = 32;
+parameter int TUSER_WIDTH     = 1;
+parameter int TDEST_WIDTH     = 1;
+parameter int TID_WIDTH       = 1;
 
 parameter int RANDOM_TVALID  = 1;
 parameter int RANDOM_TREADY  = 1;
@@ -91,66 +91,66 @@ endfunction
 mailbox rx_mbx = new();
 
 axi4_stream_if #(
-  .DATA_WIDTH ( DATA_WIDTH ),
-  .ID_WIDTH   ( ID_WIDTH   ),
-  .DEST_WIDTH ( DEST_WIDTH ),
-  .USER_WIDTH ( USER_WIDTH )
+  .TDATA_WIDTH ( TDATA_WIDTH ),
+  .TID_WIDTH   ( TID_WIDTH   ),
+  .TDEST_WIDTH ( TDEST_WIDTH ),
+  .TUSER_WIDTH ( TUSER_WIDTH )
 ) pkt_i (
-  .aclk       ( clk        ),
-  .aresetn    ( !rst       )
+  .aclk        ( clk         ),
+  .aresetn     ( !rst        )
 );
 
 AXI4StreamMaster #(
-  .DATA_WIDTH    ( DATA_WIDTH    ),
-  .ID_WIDTH      ( ID_WIDTH      ),
-  .DEST_WIDTH    ( DEST_WIDTH    ),
-  .USER_WIDTH    ( USER_WIDTH    ),
+  .TDATA_WIDTH   ( TDATA_WIDTH   ),
+  .TID_WIDTH     ( TID_WIDTH     ),
+  .TDEST_WIDTH   ( TDEST_WIDTH   ),
+  .TUSER_WIDTH   ( TUSER_WIDTH   ),
   .RANDOM_TVALID ( RANDOM_TVALID )
 ) pkt_sender;
 
 axi4_stream_if #(
-  .DATA_WIDTH ( DATA_WIDTH ),
-  .ID_WIDTH   ( ID_WIDTH   ),
-  .DEST_WIDTH ( DEST_WIDTH ),
-  .USER_WIDTH ( USER_WIDTH )
+  .TDATA_WIDTH ( TDATA_WIDTH ),
+  .TID_WIDTH   ( TID_WIDTH   ),
+  .TDEST_WIDTH ( TDEST_WIDTH ),
+  .TUSER_WIDTH ( TUSER_WIDTH )
 ) pkt_o (
-  .aclk       ( clk        ),
-  .aresetn    ( !rst       )
+  .aclk        ( clk         ),
+  .aresetn     ( !rst        )
 );
 
 AXI4StreamSlave #(
-  .DATA_WIDTH    ( DATA_WIDTH    ),
-  .ID_WIDTH      ( ID_WIDTH      ),
-  .DEST_WIDTH    ( DEST_WIDTH    ),
-  .USER_WIDTH    ( USER_WIDTH    ),
-  .RANDOM_TREADY ( RANDOM_TREADY )
+  .TDATA_WIDTH    ( TDATA_WIDTH    ),
+  .TID_WIDTH      ( TID_WIDTH      ),
+  .TDEST_WIDTH    ( TDEST_WIDTH    ),
+  .TUSER_WIDTH    ( TUSER_WIDTH    ),
+  .RANDOM_TREADY  ( RANDOM_TREADY  )
 ) pkt_receiver;
 
 axi4_stream_fifo #(
-  .DATA_WIDTH    ( DATA_WIDTH         ),
-  .USER_WIDTH    ( USER_WIDTH         ),
-  .DEST_WIDTH    ( DEST_WIDTH         ),
-  .ID_WIDTH      ( ID_WIDTH           ),
-  .WORDS_AMOUNT  ( WORDS_AMOUNT       ),
-  .SMART         ( SMART              )
+  .TDATA_WIDTH   ( TDATA_WIDTH  ),
+  .TUSER_WIDTH   ( TUSER_WIDTH  ),
+  .TDEST_WIDTH   ( TDEST_WIDTH  ),
+  .TID_WIDTH     ( TID_WIDTH    ),
+  .WORDS_AMOUNT  ( WORDS_AMOUNT ),
+  .SMART         ( SMART        )
 ) DUT (
-  .clk_i         ( clk                ),
-  .rst_i         ( rst                ),
-  .full_o        ( full               ),
-  .empty_o       ( empty              ),
-  .drop_o        ( drop               ),
-  .used_words_o  ( used_words         ),
-  .pkts_amount_o ( pkts_amount        ),
-  .pkt_i         ( pkt_i              ),
-  .pkt_o         ( pkt_o              )
+  .clk_i         ( clk          ),
+  .rst_i         ( rst          ),
+  .full_o        ( full         ),
+  .empty_o       ( empty        ),
+  .drop_o        ( drop         ),
+  .used_words_o  ( used_words   ),
+  .pkts_amount_o ( pkts_amount  ),
+  .pkt_i         ( pkt_i        ),
+  .pkt_o         ( pkt_o        )
 );
 
 initial
   begin
     pkt_sender   = new( .axi4_stream_if_v ( pkt_i ) );
-    pkt_receiver = new ( .axi4_stream_if_v ( pkt_o  ),
-                         .rx_data_mbx      ( rx_mbx )
-                       );
+    pkt_receiver = new( .axi4_stream_if_v ( pkt_o  ),
+                        .rx_data_mbx      ( rx_mbx )
+                      );
     fork
       clk_gen();
       pkt_check();
