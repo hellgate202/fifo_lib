@@ -20,6 +20,7 @@ add wave -noupdate -radix hexadecimal /tb_axi4_stream_fifo/DUT/empty_o
 add wave -noupdate -radix hexadecimal /tb_axi4_stream_fifo/DUT/drop_o
 add wave -noupdate -radix unsigned /tb_axi4_stream_fifo/DUT/used_words_o
 add wave -noupdate -radix unsigned /tb_axi4_stream_fifo/DUT/pkts_amount_o
+add wave -noupdate /tb_axi4_stream_fifo/DUT/pkt_size_o
 add wave -noupdate -radix hexadecimal /tb_axi4_stream_fifo/DUT/wr_data
 add wave -noupdate -radix hexadecimal /tb_axi4_stream_fifo/DUT/rd_data
 add wave -noupdate -radix hexadecimal /tb_axi4_stream_fifo/DUT/wr_addr

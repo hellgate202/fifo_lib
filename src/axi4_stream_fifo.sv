@@ -1,24 +1,27 @@
 // For more code explanation refer to sc_fifo.sv
 module axi4_stream_fifo #(
   // AXI4 interface parameters
-  parameter int TDATA_WIDTH  = 32,
-  parameter int TUSER_WIDTH  = 1,
-  parameter int TDEST_WIDTH  = 1,
-  parameter int TID_WIDTH    = 1,
+  parameter int TDATA_WIDTH    = 32,
+  parameter int TUSER_WIDTH    = 1,
+  parameter int TDEST_WIDTH    = 1,
+  parameter int TID_WIDTH      = 1,
   // FIFO parameters
-  parameter int WORDS_AMOUNT = 8,
-  parameter int SMART        = 1,
-  parameter int ADDR_WIDTH   = $clog2( WORDS_AMOUNT )
+  parameter int WORDS_AMOUNT   = 8,
+  parameter int SMART          = 1,
+  parameter int SHOW_PKT_SIZE  = 0,
+  parameter int ADDR_WIDTH     = $clog2( WORDS_AMOUNT ),
+  parameter int PKT_SIZE_WIDTH = ADDR_WIDTH + $clog2( TDATA_WIDTH / 8 )
 )(
-  input                   clk_i,
-  input                   rst_i,
-  output                  full_o,
-  output                  empty_o,
-  output                  drop_o,
-  output [ADDR_WIDTH : 0] used_words_o,
-  output [ADDR_WIDTH : 0] pkts_amount_o,
-  axi4_stream_if.slave    pkt_i,
-  axi4_stream_if.master   pkt_o
+  input                       clk_i,
+  input                       rst_i,
+  output                      full_o,
+  output                      empty_o,
+  output                      drop_o,
+  output [ADDR_WIDTH : 0]     used_words_o,
+  output [ADDR_WIDTH : 0]     pkts_amount_o,
+  output [PKT_SIZE_WIDTH : 0] pkt_size_o,
+  axi4_stream_if.slave        pkt_i,
+  axi4_stream_if.master       pkt_o
 );
 
 localparam int TDATA_WIDTH_B = TDATA_WIDTH / 8;
@@ -101,9 +104,67 @@ generate
       assign drop_o       = drop_state && pkt_i.tvalid && pkt_i.tlast;
       // We are always ready if we are dropping packets on overflow
       assign pkt_i.tready = 1'b1;
-      // When we have at least one packet, we set valid high. Valid is continious
-      // for the whole packet
-      assign pkt_o.tvalid = pkt_cnt > 'd0 && data_in_o_reg;
+
+      if( SHOW_PKT_SIZE )
+        begin : cnt_pkt_size
+          localparam int RX_BYTE_CNT_WIDTH = $clog2( TDATA_WIDTH_B );
+
+          logic [PKT_SIZE_WIDTH : 0]    pkt_size;
+          logic [PKT_SIZE_WIDTH : 0]    pkt_size_inc;
+          logic [RX_BYTE_CNT_WIDTH : 0] rx_bytes;
+          logic                         no_pkt_size;
+
+          // Amount of ones in tkeep signal is amount of bytes to receive
+          always_comb
+            begin
+              rx_bytes = '0;
+              if( pkt_i.tvalid )
+                if( pkt_i.tlast )
+                  begin
+                    for( integer lmo = 0; lmo < TDATA_WIDTH_B; lmo++ )
+                      if( pkt_i.tkeep[lmo] )
+                        rx_bytes = RX_BYTE_CNT_WIDTH'( lmo ) + 1'b1;
+                  end
+                else
+                  rx_bytes = ( RX_BYTE_CNT_WIDTH + 1 )'( TDATA_WIDTH_B );
+            end
+
+          assign pkt_size_inc = pkt_size + rx_bytes;
+
+          // Receive bytes counter
+          always_ff @( posedge clk_i, posedge rst_i ) 
+            if( rst_i )
+              pkt_size <= '0;
+            else
+              if( pkt_i.tvalid && pkt_i.tready )
+                if( pkt_i.tlast || drop_state )
+                  pkt_size <= '0;
+                else
+                  pkt_size <= pkt_size_inc;
+
+          // Another FIFO just for packet sizes
+          sc_fifo #(
+            .DATA_WIDTH   ( PKT_SIZE_WIDTH + 1 ),
+            .WORDS_AMOUNT ( WORDS_AMOUNT       )
+          ) pkt_size_fifo (
+            .clk_i        ( clk_i              ),
+            .rst_i        ( rst_i              ),
+            .wr_i         ( wr_pkt_done        ),
+            .wr_data_i    ( pkt_size_inc       ),
+            .rd_i         ( rd_pkt_done        ),
+            .rd_data_o    ( pkt_size_o         ),
+            .used_words_o (                    ),
+            .full_o       (                    ),
+            .empty_o      ( no_pkt_size        )
+          );
+
+          assign pkt_o.tvalid = !no_pkt_size && pkt_cnt > 'd0 && data_in_o_reg;
+        end
+      else
+        begin : no_cnt_pkt_size
+          assign pkt_size_o   = '0;
+          assign pkt_o.tvalid = pkt_cnt > 'd0 && data_in_o_reg;
+        end
     end
   else
     begin : backpressure_logic
@@ -114,6 +175,7 @@ generate
       assign pkt_i.tready = !full;
       // Valid whenether we have data at output
       assign pkt_o.tvalid = data_in_o_reg;
+      assign pkt_size_o   = '0;
     end
 endgenerate
 
