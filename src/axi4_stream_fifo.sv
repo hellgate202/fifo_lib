@@ -320,7 +320,9 @@ always_ff @( posedge clk_i, posedge rst_i )
     // word in output register, that was outputed in the same tick as drop
     // state appears. I.e. fifo was flushed not by drop state, but by regular
     // read operation.
-    if( rd_req && data_in_ram && !( drop_state && used_words_comb == '0 ) )
+    if( rd_req && data_in_ram && !( drop_state && 
+                                    ( ( used_words == pkt_word_cnt && !rd_req ) ||
+                                      ( used_words == pkt_word_cnt_m1 && rd_req ) ) ) )
       rd_addr <= rd_addr + 1'b1;
 
 always_ff @( posedge clk_i, posedge rst_i )
