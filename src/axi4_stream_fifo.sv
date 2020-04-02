@@ -51,6 +51,9 @@ logic [ADDR_WIDTH : 0]     used_words, used_words_comb;
 
 logic [ADDR_WIDTH : 0]     pkt_cnt;
 logic [ADDR_WIDTH : 0]     pkt_word_cnt;
+logic [ADDR_WIDTH : 0]     pkt_word_cnt_m1;
+logic [ADDR_WIDTH : 0]     pkt_word_cnt_p1;
+logic [ADDR_WIDTH : 0]     pkt_word_cnt_p2;
 
 logic                      rd_en;
 logic                      data_in_ram;
@@ -200,13 +203,28 @@ assign pkts_amount_o = pkt_cnt;
 // It is needed to revert write address of RAM in case of drop state
 always_ff @( posedge clk_i, posedge rst_i )
   if( rst_i )
-    pkt_word_cnt <= '0;
+    begin
+      pkt_word_cnt    <= '0;
+      pkt_word_cnt_m1 <= '1;
+      pkt_word_cnt_p1 <= 'd1;
+      pkt_word_cnt_p2 <= 'd2;
+    end
   else
     if( wr_pkt_done || drop_state )
-      pkt_word_cnt <= '0;
+      begin
+        pkt_word_cnt    <= '0;
+        pkt_word_cnt_m1 <= '1;
+        pkt_word_cnt_p1 <= 'd1;
+        pkt_word_cnt_p2 <= 'd2;
+      end
     else
       if( wr_req )
-        pkt_word_cnt <= pkt_word_cnt + 1'b1;
+        begin
+          pkt_word_cnt    <= pkt_word_cnt    + 1'b1;
+          pkt_word_cnt_m1 <= pkt_word_cnt_m1 + 1'b1;
+          pkt_word_cnt_p1 <= pkt_word_cnt_p1 + 1'b1;
+          pkt_word_cnt_p2 <= pkt_word_cnt_p2 + 1'b1;
+        end
 
 always_ff @( posedge clk_i, posedge rst_i )
   if ( rst_i )
@@ -219,7 +237,7 @@ always_comb
     used_words_comb = used_words;
     // Full is triggered only for one tick so we use it 
     // to decrase used_words only once
-    if( drop_state && full )
+    if( drop_state )
       begin
         // Used words is decrased by the droped words amount and one
         // currently read word. wr_req is unsetable in drop state
@@ -249,7 +267,9 @@ always_ff @( posedge clk_i, posedge rst_i )
   else
     // If after drop state we won't have any words in FIFO then we also won't
     // have any words in output register
-    if( drop_state && used_words_comb == '0 )
+    if( drop_state &&
+        ( ( used_words == pkt_word_cnt && !rd_req ) ||
+          ( used_words == pkt_word_cnt_m1 && rd_req ) ) )
       data_in_o_reg <= 1'b0;
     else
       if( rd_req || first_word )
@@ -264,7 +284,9 @@ always_ff @( posedge clk_i, posedge rst_i )
   else
     // If after drop state there will be only one word in FIFO it will be in
     // output register
-    if( drop_state && ( used_words_comb < 'd2 ) )
+    if( drop_state && 
+        ( ( used_words < pkt_word_cnt_p2 && !rd_req ) ||
+          ( used_words < pkt_word_cnt_p1 && rd_req ) ) )
       data_in_ram <= 1'b0;
     else
       if( rd_req )
@@ -282,7 +304,9 @@ always_ff @( posedge clk_i, posedge rst_i )
     // Then it is packet of size that larger than FIFO capacity and it will be
     // cleared as well as output register. So write address will be decrased
     // one less the usual.
-    if( drop_state && full )
+    if( drop_state &&
+        ( ( used_words == pkt_word_cnt && !rd_req ) ||
+          ( used_words == pkt_word_cnt_m1 && rd_req ) ) )
       wr_addr <= wr_addr - ( pkt_word_cnt[ADDR_WIDTH - 1 : 0] - ( pkt_cnt == '0 ) );
     else 
       if( wr_req && ( data_in_ram || !rd_req && data_in_o_reg ) )
