@@ -285,8 +285,8 @@ always_ff @( posedge clk_i, posedge rst_i )
     // If after drop state there will be only one word in FIFO it will be in
     // output register
     if( drop_state && 
-        ( ( used_words < pkt_word_cnt_p2 && !rd_req ) ||
-          ( used_words < pkt_word_cnt_p1 && rd_req ) ) )
+        ( ( used_words == pkt_word_cnt_p1 && !rd_req ) ||
+          ( used_words == pkt_word_cnt_p2 && rd_req ) ) )
       data_in_ram <= 1'b0;
     else
       if( rd_req )
@@ -304,9 +304,7 @@ always_ff @( posedge clk_i, posedge rst_i )
     // Then it is packet of size that larger than FIFO capacity and it will be
     // cleared as well as output register. So write address will be decrased
     // one less the usual.
-    if( drop_state &&
-        ( ( used_words == pkt_word_cnt && !rd_req ) ||
-          ( used_words == pkt_word_cnt_m1 && rd_req ) ) )
+    if( drop_state && full )
       wr_addr <= wr_addr - ( pkt_word_cnt[ADDR_WIDTH - 1 : 0] - ( pkt_cnt == '0 ) );
     else 
       if( wr_req )
@@ -320,9 +318,7 @@ always_ff @( posedge clk_i, posedge rst_i )
     // word in output register, that was outputed in the same tick as drop
     // state appears. I.e. fifo was flushed not by drop state, but by regular
     // read operation.
-    if( rd_en && !( drop_state && 
-                                    ( ( used_words == pkt_word_cnt && !rd_req ) ||
-                                      ( used_words == pkt_word_cnt_m1 && rd_req ) ) ) )
+    if( rd_en ) 
       rd_addr <= rd_addr + 1'b1;
 
 always_ff @( posedge clk_i, posedge rst_i )

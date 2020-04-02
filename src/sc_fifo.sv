@@ -173,7 +173,7 @@ always_ff @( posedge clk_i, posedge rst_i )
   else
     // One word more than in the memory, due to output register
     if( !rd_req && wr_req )
-      full <= used_words == ( 2**ADDR_WIDTH );
+      full <= used_words == ( 2**ADDR_WIDTH - 1 );
     else
       if( rd_req && !wr_req )
         full <= 1'b0;
