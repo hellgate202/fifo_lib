@@ -276,7 +276,7 @@ always_ff @( posedge clk_i, posedge rst_i )
         data_in_o_reg <= data_in_ram;
 
 assign empty_o = !data_in_o_reg;
-assign rd_en   = first_word || rd_req;
+assign rd_en   = ( first_word || rd_req ) && data_in_ram;
 
 always_ff @( posedge clk_i, posedge rst_i )
   if( rst_i )
@@ -309,7 +309,7 @@ always_ff @( posedge clk_i, posedge rst_i )
           ( used_words == pkt_word_cnt_m1 && rd_req ) ) )
       wr_addr <= wr_addr - ( pkt_word_cnt[ADDR_WIDTH - 1 : 0] - ( pkt_cnt == '0 ) );
     else 
-      if( wr_req && ( data_in_ram || !rd_req && data_in_o_reg ) )
+      if( wr_req )
         wr_addr <= wr_addr + 1'b1;
 
 always_ff @( posedge clk_i, posedge rst_i )
@@ -320,7 +320,7 @@ always_ff @( posedge clk_i, posedge rst_i )
     // word in output register, that was outputed in the same tick as drop
     // state appears. I.e. fifo was flushed not by drop state, but by regular
     // read operation.
-    if( rd_req && data_in_ram && !( drop_state && 
+    if( rd_en && !( drop_state && 
                                     ( ( used_words == pkt_word_cnt && !rd_req ) ||
                                       ( used_words == pkt_word_cnt_m1 && rd_req ) ) ) )
       rd_addr <= rd_addr + 1'b1;

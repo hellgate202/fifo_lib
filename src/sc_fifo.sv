@@ -117,7 +117,7 @@ always_ff @( posedge clk_i, posedge rst_i )
       data_in_o_reg <= data_in_ram;
 
 // Pulling data from ram to output register
-assign rd_en = first_word || rd_req;
+assign rd_en = ( first_word || rd_req ) && data_in_ram;
 assign empty = !data_in_o_reg;
 
 // There are 2 cases when data in RAM can be depleted:
@@ -151,7 +151,7 @@ always_ff @( posedge clk_i, posedge rst_i )
   if( rst_i )
     wr_addr <= '0;
   else
-    if( wr_req && ( data_in_ram || !rd_req && data_in_o_reg ) )
+    if( wr_req )
       wr_addr <= wr_addr + 1'b1;
 
 // When we apply read request we need to increment read address to move to
@@ -164,7 +164,7 @@ always_ff @( posedge clk_i, posedge rst_i )
   if( rst_i )
     rd_addr <= '0;
   else
-    if( rd_req && data_in_ram )
+    if( rd_en )
       rd_addr <= rd_addr + 1'b1;
 
 always_ff @( posedge clk_i, posedge rst_i )
