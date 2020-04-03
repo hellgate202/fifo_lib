@@ -27,7 +27,6 @@ module axi4_stream_fifo #(
 localparam int TDATA_WIDTH_B = TDATA_WIDTH / 8;
 localparam int FIFO_WIDTH    = TDATA_WIDTH + TUSER_WIDTH + TDEST_WIDTH + 
                                TID_WIDTH + 2 * TDATA_WIDTH_B + 1;
-
 typedef struct packed {
   logic [TDATA_WIDTH - 1 : 0]   tdata;
   logic [TDATA_WIDTH_B - 1 : 0] tstrb;
@@ -121,9 +120,9 @@ generate
               if( pkt_i.tvalid )
                 if( pkt_i.tlast )
                   begin
-                    for( integer lmo = 0; lmo < TDATA_WIDTH_B; lmo++ )
+                    for( int lmo = 0; lmo < TDATA_WIDTH_B; lmo++ )
                       if( pkt_i.tkeep[lmo] )
-                        rx_bytes = RX_BYTE_CNT_WIDTH'( lmo ) + 1'b1;
+                        rx_bytes = rx_bytes + 1'b1;
                   end
                 else
                   rx_bytes = ( RX_BYTE_CNT_WIDTH + 1 )'( TDATA_WIDTH_B );
