@@ -2,8 +2,8 @@
 
 module tb_sc_fifo;
 
-parameter int DATA_WIDTH   = 8;
-parameter int WORDS_AMOUNT = 8;
+parameter int DATA_WIDTH   = 2;
+parameter int WORDS_AMOUNT = 2;
 parameter int CLK_T        = 10000;
 parameter int ADDR_WIDTH   = $clog2( WORDS_AMOUNT );
 
@@ -85,7 +85,8 @@ endtask
 
 sc_fifo #(
   .DATA_WIDTH   ( DATA_WIDTH   ),
-  .WORDS_AMOUNT ( WORDS_AMOUNT )
+  .WORDS_AMOUNT ( WORDS_AMOUNT ),
+  .USE_LUTS     ( 1            )
 ) dut (
   .clk_i        ( clk          ),
   .rst_i        ( rst          ),

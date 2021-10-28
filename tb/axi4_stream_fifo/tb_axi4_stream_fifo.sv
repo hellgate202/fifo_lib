@@ -11,13 +11,14 @@ parameter int TUSER_WIDTH     = 1;
 parameter int TDEST_WIDTH     = 1;
 parameter int TID_WIDTH       = 1;
 
-parameter int RANDOM_TVALID  = 1;
+parameter int RANDOM_TVALID  = 0;
 parameter int RANDOM_TREADY  = 0;
 parameter int PKTS_AMOUNT    = 100000;
-parameter int MAX_PKT_SIZE_B = 300;
+parameter int MAX_PKT_SIZE_B = 200;
 parameter int MIN_PKT_SIZE_B = 100;
-parameter int SMART          = 1;
-parameter int SHOW_PKT_SIZE  = 1;
+parameter int SMART          = 0;
+parameter int SHOW_PKT_SIZE  = 0;
+parameter int MEM_OPT        = 1;
 
 parameter int CLK_T          = 5000;
 
@@ -136,7 +137,8 @@ axi4_stream_fifo #(
   .TID_WIDTH     ( TID_WIDTH     ),
   .WORDS_AMOUNT  ( WORDS_AMOUNT  ),
   .SMART         ( SMART         ),
-  .SHOW_PKT_SIZE ( SHOW_PKT_SIZE )
+  .SHOW_PKT_SIZE ( SHOW_PKT_SIZE ),
+  .MEM_OPT       ( MEM_OPT       )
 ) DUT (
   .clk_i         ( clk           ),
   .rst_i         ( rst           ),

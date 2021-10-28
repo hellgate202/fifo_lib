@@ -10,7 +10,11 @@ module axi4_stream_fifo #(
   parameter int SMART          = 1,
   parameter int SHOW_PKT_SIZE  = 0,
   parameter int ADDR_WIDTH     = $clog2( WORDS_AMOUNT ),
-  parameter int PKT_SIZE_WIDTH = ADDR_WIDTH + $clog2( TDATA_WIDTH / 8 )
+  parameter int PKT_SIZE_WIDTH = ADDR_WIDTH + $clog2( TDATA_WIDTH / 8 ),
+  // Doesn't work in SMART mode
+  parameter int MEM_OPT        = 0,
+  parameter int MAX_PKTS       = 10,
+  parameter int MAX_PKT_SIZE   = 1920
 )(
   input                       clk_i,
   input                       rst_i,
@@ -25,8 +29,8 @@ module axi4_stream_fifo #(
 );
 
 localparam int TDATA_WIDTH_B = TDATA_WIDTH / 8;
-localparam int FIFO_WIDTH    = TDATA_WIDTH + TUSER_WIDTH + TDEST_WIDTH + 
-                               TID_WIDTH + 2 * TDATA_WIDTH_B + 1;
+localparam int PKT_CNT_WIDTH = $clog2( MAX_PKT_SIZE );
+
 typedef struct packed {
   logic [TDATA_WIDTH - 1 : 0]   tdata;
   logic [TDATA_WIDTH_B - 1 : 0] tstrb;
@@ -37,6 +41,18 @@ typedef struct packed {
   logic [TID_WIDTH - 1 : 0]     tid;
 } axi4_stream_word_t;
 
+typedef struct packed {
+  logic [TUSER_WIDTH - 1 : 0]   tuser;
+  logic [TDEST_WIDTH - 1 : 0]   tdest;
+  logic [TID_WIDTH - 1 : 0]     tid;
+} axi4_stream_sop_t;
+
+typedef struct packed {
+  logic [TDATA_WIDTH_B - 1 : 0] tstrb;
+  logic [TDATA_WIDTH_B - 1 : 0] tkeep;
+} axi4_stream_eop_t;
+
+localparam int FIFO_WIDTH = MEM_OPT ? TDATA_WIDTH : $bits( axi4_stream_word_t );
 // Data words for RAM
 axi4_stream_word_t wr_data;
 axi4_stream_word_t rd_data;
@@ -64,6 +80,30 @@ logic                      rd_pkt_done;
 
 logic                      drop_state;
 
+localparam int SOP_DATA_WIDTH       = $bits( axi4_stream_sop_t );
+localparam int EOP_DATA_WIDTH       = $bits( axi4_stream_eop_t );
+
+typedef struct packed {
+  logic [PKT_CNT_WIDTH - 1 : 0] meta_ptr;
+  axi4_stream_sop_t             sop_meta;
+  axi4_stream_eop_t             eop_meta;
+} meta_fifo_t;
+
+localparam int META_FIFO_DATA_WIDTH = $bits( meta_fifo_t );
+
+axi4_stream_sop_t              saved_sop_meta;
+logic [PKT_CNT_WIDTH - 1 : 0]  pop_meta_cnt;
+logic                          meta_fifo_push;
+logic                          meta_fifo_pop;
+logic                          meta_fifo_full;
+logic                          meta_fifo_empty;
+meta_fifo_t                    meta_fifo_wr_data;
+meta_fifo_t                    meta_fifo_rd_data;
+logic                          meta_fifo_tfirst;
+
+logic                          was_tlast;
+logic                          tfirst;
+
 assign wr_data.tdata = pkt_i.tdata;
 assign wr_data.tstrb = pkt_i.tstrb;
 assign wr_data.tkeep = pkt_i.tkeep;
@@ -72,16 +112,9 @@ assign wr_data.tuser = pkt_i.tuser;
 assign wr_data.tdest = pkt_i.tdest;
 assign wr_data.tid   = pkt_i.tid;
 
-assign pkt_o.tdata   = rd_data.tdata;
-assign pkt_o.tstrb   = rd_data.tstrb;
-assign pkt_o.tkeep   = rd_data.tkeep;
-assign pkt_o.tlast   = rd_data.tlast;
-assign pkt_o.tuser   = rd_data.tuser;
-assign pkt_o.tdest   = rd_data.tdest;
-assign pkt_o.tid     = rd_data.tid;
-
 assign rd_req        = pkt_o.tvalid && pkt_o.tready;
-assign wr_req        = pkt_i.tvalid && !full && !drop_state;
+assign wr_req        = MEM_OPT ? pkt_i.tvalid && !full && !meta_fifo_full && !drop_state :
+                                 pkt_i.tvalid && !full && !drop_state;
 
 generate
   if( SMART )
@@ -174,7 +207,7 @@ generate
       assign drop_state   = 1'b0;
       assign drop_o       = 1'b0;
       // We are backpressuring if we are full
-      assign pkt_i.tready = !full;
+      assign pkt_i.tready = MEM_OPT ? !full && !meta_fifo_full : !full;
       // Valid whenether we have data at output
       assign pkt_o.tvalid = data_in_o_reg;
       assign pkt_size_o   = '0;
@@ -341,20 +374,143 @@ always_comb
         full_comb = 1'b0;
   end
 
-assign full_o = full;
+assign full_o = MEM_OPT ? full || meta_fifo_full : full;
 
-dual_port_ram #(
-  .DATA_WIDTH ( FIFO_WIDTH ),
-  .ADDR_WIDTH ( ADDR_WIDTH )
-) ram (
-  .wr_clk_i   ( clk_i      ),
-  .wr_addr_i  ( wr_addr    ),
-  .wr_data_i  ( wr_data    ),
-  .wr_i       ( wr_req     ),
-  .rd_clk_i   ( clk_i      ),
-  .rd_addr_i  ( rd_addr    ),
-  .rd_data_o  ( rd_data    ),
-  .rd_i       ( rd_en      )
-);
+generate
+  if( MEM_OPT )
+    begin : tdata_ram
+      dual_port_ram #(
+        .DATA_WIDTH ( FIFO_WIDTH ),
+        .ADDR_WIDTH ( ADDR_WIDTH )
+      ) ram (
+        .wr_clk_i   ( clk_i      ),
+        .wr_addr_i  ( wr_addr    ),
+        .wr_data_i  ( wr_data.tdata    ),
+        .wr_i       ( wr_req     ),
+        .rd_clk_i   ( clk_i      ),
+        .rd_addr_i  ( rd_addr    ),
+        .rd_data_o  ( rd_data.tdata    ),
+        .rd_i       ( rd_en      )
+      );
+    end
+  else
+    begin : axi_word_t_ram
+      dual_port_ram #(
+        .DATA_WIDTH ( FIFO_WIDTH ),
+        .ADDR_WIDTH ( ADDR_WIDTH )
+      ) ram (
+        .wr_clk_i   ( clk_i      ),
+        .wr_addr_i  ( wr_addr    ),
+        .wr_data_i  ( wr_data    ),
+        .wr_i       ( wr_req     ),
+        .rd_clk_i   ( clk_i      ),
+        .rd_addr_i  ( rd_addr    ),
+        .rd_data_o  ( rd_data    ),
+        .rd_i       ( rd_en      )
+      );
+    end
+endgenerate
+
+generate
+  if( MEM_OPT )
+    begin : meta_fifo_gen
+      always_ff @( posedge clk_i, posedge rst_i )
+        if( rst_i )
+          was_tlast <= 1'b1;
+        else
+          if( pkt_i.tvalid && pkt_i.tready )
+            if( pkt_i.tlast )
+              was_tlast <= 1'b1;
+            else
+              was_tlast <= 1'b0;
+      
+      assign tfirst         = was_tlast && pkt_i.tvalid;
+      assign meta_fifo_push = wr_req && pkt_i.tlast; 
+      assign meta_fifo_pop  = rd_req && pop_meta_cnt == meta_fifo_rd_data.meta_ptr && !meta_fifo_empty;
+      
+      always_ff @( posedge clk_i, posedge rst_i )
+        if( rst_i )
+          saved_sop_meta <= SOP_DATA_WIDTH'( 0 );
+        else
+          if( wr_req && tfirst )
+            begin
+              saved_sop_meta.tuser <= pkt_i.tuser;
+              saved_sop_meta.tdest <= pkt_i.tdest;
+              saved_sop_meta.tid   <= pkt_i.tid;
+            end
+      
+      always_ff @( posedge clk_i, posedge rst_i )
+        if( rst_i )
+          pop_meta_cnt <= PKT_CNT_WIDTH'( 0 );
+        else
+          if( rd_req )
+            if( meta_fifo_pop )
+              pop_meta_cnt <= PKT_CNT_WIDTH'( 0 );
+            else
+              pop_meta_cnt <= pop_meta_cnt + 1'b1;
+      
+      assign meta_fifo_tfirst = !pop_meta_cnt;
+
+      always_ff @( posedge clk_i, posedge rst_i )
+        if( rst_i )
+          meta_fifo_wr_data.meta_ptr <= PKT_CNT_WIDTH'( 0 );
+        else
+          if( wr_req )
+            if( pkt_i.tlast )
+              meta_fifo_wr_data.meta_ptr <= PKT_CNT_WIDTH'( 0 );
+            else
+              meta_fifo_wr_data.meta_ptr <= meta_fifo_wr_data.meta_ptr + 1'b1;
+      
+      always_comb
+        if( tfirst )
+          begin
+            meta_fifo_wr_data.sop_meta.tuser = pkt_i.tuser;
+            meta_fifo_wr_data.sop_meta.tdest = pkt_i.tdest;
+            meta_fifo_wr_data.sop_meta.tid   = pkt_i.tid;
+          end
+        else
+          meta_fifo_wr_data.sop_meta = saved_sop_meta;
+      
+      assign meta_fifo_wr_data.eop_meta.tstrb = pkt_i.tstrb;
+      assign meta_fifo_wr_data.eop_meta.tkeep = pkt_i.tkeep;
+      
+      sc_fifo #(
+        .DATA_WIDTH   ( META_FIFO_DATA_WIDTH ),
+        .WORDS_AMOUNT ( MAX_PKTS             ),
+        .USE_LUTS     ( 1                    )
+      ) meta_fifo_inst (
+        .clk_i        ( clk_i                ),
+        .rst_i        ( rst_i                ),
+        .wr_i         ( meta_fifo_push       ),
+        .wr_data_i    ( meta_fifo_wr_data    ),
+        .rd_i         ( meta_fifo_pop        ),
+        .rd_data_o    ( meta_fifo_rd_data    ),
+        .used_words_o (                      ),
+        .full_o       ( meta_fifo_full       ),
+        .empty_o      ( meta_fifo_empty      )
+      );
+      
+      assign pkt_o.tuser = meta_fifo_empty ? saved_sop_meta.tuser && meta_fifo_tfirst : 
+                                             meta_fifo_rd_data.sop_meta.tuser && meta_fifo_tfirst;
+      assign pkt_o.tdest = meta_fifo_empty ? saved_sop_meta.tdest && meta_fifo_tfirst:
+                                             meta_fifo_rd_data.sop_meta.tdest && meta_fifo_tfirst;
+      assign pkt_o.tid   = meta_fifo_empty ? saved_sop_meta.tid && meta_fifo_tfirst:
+                                             meta_fifo_rd_data.sop_meta.tid && meta_fifo_tfirst;
+      assign pkt_o.tlast = meta_fifo_pop;
+      assign pkt_o.tstrb = meta_fifo_pop ? meta_fifo_rd_data.eop_meta.tstrb : '1;
+      assign pkt_o.tkeep = meta_fifo_pop ? meta_fifo_rd_data.eop_meta.tkeep : '1;
+    end
+  else
+    begin : no_meta_fifo_gen
+      assign pkt_o.tstrb   = rd_data.tstrb;
+      assign pkt_o.tkeep   = rd_data.tkeep;
+      assign pkt_o.tlast   = rd_data.tlast;
+      assign pkt_o.tuser   = rd_data.tuser;
+      assign pkt_o.tdest   = rd_data.tdest;
+      assign pkt_o.tid     = rd_data.tid;
+    end
+endgenerate
+
+assign pkt_o.tdata   = rd_data.tdata;
 
 endmodule

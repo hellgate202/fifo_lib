@@ -1,7 +1,8 @@
 module sc_fifo #(
   parameter int DATA_WIDTH   = 8,
   parameter int WORDS_AMOUNT = 8,
-  parameter int ADDR_WIDTH   = $clog2( WORDS_AMOUNT )
+  parameter int ADDR_WIDTH   = $clog2( WORDS_AMOUNT ), 
+  parameter int USE_LUTS     = 0
 )(
   input                       clk_i,
   input                       rst_i,
@@ -173,14 +174,15 @@ always_ff @( posedge clk_i, posedge rst_i )
   else
     // One word more than in the memory, due to output register
     if( !rd_req && wr_req )
-      full <= used_words == ( 2**ADDR_WIDTH - 1 );
+      full <= used_words == ( ADDR_WIDTH + 1 )'( 2**ADDR_WIDTH - 1 );
     else
       if( rd_req && !wr_req )
         full <= 1'b0;
 
 dual_port_ram #(
   .DATA_WIDTH ( DATA_WIDTH ),
-  .ADDR_WIDTH ( ADDR_WIDTH )
+  .ADDR_WIDTH ( ADDR_WIDTH ),
+  .USE_LUTS   ( USE_LUTS   )
 ) ram (
   .wr_clk_i   ( clk_i      ),
   .wr_addr_i  ( wr_addr    ),
